@@ -53,10 +53,6 @@ impl EguiRenderer {
         self.state.egui_ctx()
     }
 
-    pub fn set_pixels_per_point(&mut self, v: f32) {
-        self.egui_ctx().set_pixels_per_point(v);
-    }
-
     pub fn begin_frame(&mut self, window: &Window) {
         let raw_input = self.state.take_egui_input(window);
         self.state.egui_ctx().begin_pass(raw_input);
@@ -75,8 +71,6 @@ impl EguiRenderer {
         if !self.frame_started {
             panic!("begin_frame must be called before end_frame_and_draw can be called!");
         }
-
-        self.set_pixels_per_point(screen_descriptor.pixels_per_point);
 
         let full_output = self.state.egui_ctx().end_pass();
 

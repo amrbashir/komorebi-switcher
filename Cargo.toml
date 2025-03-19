@@ -50,4 +50,5 @@ features = [
   "Win32_Graphics_Direct2D_Common",
   "Win32_Graphics_DirectComposition",
   "Win32_Graphics_Dxgi_Common",
+  "Win32_UI_HiDpi",
 ]

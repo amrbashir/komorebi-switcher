@@ -14,7 +14,6 @@ pub struct WgpuSurface {
     queue: wgpu::Queue,
     surface_config: wgpu::SurfaceConfiguration,
     surface: wgpu::Surface<'static>,
-    scale_factor: f32,
     pub egui_renderer: EguiRenderer,
     #[allow(unused)]
     dx12_surface: Dx12Surface,
@@ -77,15 +76,12 @@ impl WgpuSurface {
 
         let egui_renderer = EguiRenderer::new(&device, surface_config.format, None, 1, window);
 
-        let scale_factor = 1.0;
-
         Ok(Self {
             device,
             queue,
             surface,
             surface_config,
             egui_renderer,
-            scale_factor,
             dx12_surface,
         })
     }
@@ -117,7 +113,7 @@ impl WgpuSurface {
     ) -> anyhow::Result<()> {
         let screen_descriptor = egui_wgpu::ScreenDescriptor {
             size_in_pixels: [self.surface_config.width, self.surface_config.height],
-            pixels_per_point: window.scale_factor() as f32 * self.scale_factor,
+            pixels_per_point: self.egui_renderer.egui_ctx().pixels_per_point(),
         };
 
         let surface_texture = self.surface.get_current_texture()?;

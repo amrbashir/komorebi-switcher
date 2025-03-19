@@ -15,36 +15,31 @@ const APP_REG_KEY: &str = "SOFTWARE\\amrbashir\\komorebi-switcher";
 const WINDOW_POS_X_KEY: &str = "window-pos-x";
 const WINDOW_POS_Y_KEY: &str = "window-pos-y";
 
+#[cfg(debug_assertions)]
+const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher-debug::host");
+#[cfg(not(debug_assertions))]
+const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher::host");
+
 struct WndProcUserData {
     proxy: EventLoopProxy<AppMessage>,
     taskbar_hwnd: HWND,
 }
 
-unsafe extern "system" fn enum_child_resize(hwnd: HWND, lparam: LPARAM) -> BOOL {
-    let rect = lparam.0 as *const RECT;
-    let rect = *rect;
-
-    let width = rect.right - rect.left;
-    let height = rect.bottom - rect.top;
-
-    if let Err(e) = SetWindowPos(
-        hwnd,
-        None,
-        0,
-        0,
-        width,
-        height,
-        SWP_NOMOVE | SWP_FRAMECHANGED,
-    ) {
-        tracing::error!("Failed to resize child to match host: {e}")
-    }
-
+unsafe extern "system" fn enum_child_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+    let children = &mut *(lparam.0 as *mut Vec<HWND>);
+    children.push(hwnd);
     true.into()
 }
 
-unsafe extern "system" fn enum_child_close(hwnd: HWND, _lparam: LPARAM) -> BOOL {
-    let _ = SendMessageW(hwnd, WM_CLOSE, None, None);
-    true.into()
+fn enum_child_windows(hwnd: HWND) -> Vec<HWND> {
+    let mut children = Vec::new();
+
+    let children_ptr = &mut children as *mut Vec<HWND>;
+    let children_ptr = LPARAM(children_ptr as _);
+
+    let _ = unsafe { EnumChildWindows(Some(hwnd), Some(enum_child_proc), children_ptr) };
+
+    children
 }
 
 unsafe extern "system" fn wndproc_host(
@@ -59,6 +54,15 @@ unsafe extern "system" fn wndproc_host(
             let create_struct = &*(lparam.0 as *const CREATESTRUCTW);
             let userdata = create_struct.lpCreateParams as *const WndProcUserData;
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, userdata as _);
+        }
+
+        // Notify app to update DPI
+        WM_DPICHANGED_AFTERPARENT => {
+            let userdata = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+            let userdata = &*(userdata as *const WndProcUserData);
+            if let Err(e) = userdata.proxy.send_event(AppMessage::DpiChanged) {
+                tracing::error!("Failed to send `AppMessage::DpiChanged`: {e}")
+            }
         }
 
         // Disable position changes in y direction
@@ -101,15 +105,26 @@ unsafe extern "system" fn wndproc_host(
         WM_SIZE => {
             let mut rect = RECT::default();
             if GetClientRect(hwnd, &mut rect).is_ok() {
-                let _ = EnumChildWindows(
-                    Some(hwnd),
-                    Some(enum_child_resize),
-                    LPARAM(&rect as *const _ as _),
-                );
+                let width = rect.right - rect.left;
+                let height = rect.bottom - rect.top;
+
+                for child in enum_child_windows(hwnd) {
+                    if let Err(e) = SetWindowPos(
+                        child,
+                        None,
+                        0,
+                        0,
+                        width,
+                        height,
+                        SWP_NOMOVE | SWP_FRAMECHANGED,
+                    ) {
+                        tracing::error!("Failed to resize child to match host: {e}")
+                    }
+                }
             }
         }
 
-        // Notify winit app to update system settings
+        // Notify app to update system settings like accent colors
         WM_SETTINGCHANGE => {
             let userdata = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
             let userdata = &*(userdata as *const WndProcUserData);
@@ -120,12 +135,14 @@ unsafe extern "system" fn wndproc_host(
 
         // Close children when this host is closed
         WM_CLOSE => {
+            for child in enum_child_windows(hwnd) {
+                let _ = SendMessageW(child, WM_CLOSE, None, None);
+            }
+
             // Drop userdata
             let userdata = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
             let userdata = userdata as *mut WndProcUserData;
             drop(Box::from_raw(userdata));
-
-            let _ = EnumChildWindows(Some(hwnd), Some(enum_child_close), LPARAM::default());
         }
 
         _ => {}
@@ -143,14 +160,9 @@ pub unsafe fn create_host(
     let mut rect = RECT::default();
     GetClientRect(taskbar_hwnd, &mut rect)?;
 
-    #[cfg(debug_assertions)]
-    let window_class = w!("komorebi-switcher-debug::host");
-    #[cfg(not(debug_assertions))]
-    let window_class = w!("komorebi-switcher::host");
-
     let wc = WNDCLASSW {
         hInstance: hinstance.into(),
-        lpszClassName: window_class,
+        lpszClassName: HOST_CLASSNAME,
         style: CS_HREDRAW | CS_VREDRAW,
         lpfnWndProc: Some(wndproc_host),
         ..Default::default()
@@ -173,7 +185,7 @@ pub unsafe fn create_host(
 
     let hwnd = CreateWindowExW(
         WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP,
-        window_class,
+        HOST_CLASSNAME,
         PCWSTR::null(),
         WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
         window_pos_x.unwrap_or(16),

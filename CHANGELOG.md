@@ -8,6 +8,7 @@
 
 ### Fixed
 
+- Fixed incorrect size when monitor DPI changes.
 - Fixed dragging mode sometimes not working.
 
   There is still a bug that entering drag mode consecutively won't work, you need to left-click a workspace at least one time

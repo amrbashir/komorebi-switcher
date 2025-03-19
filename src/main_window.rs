@@ -5,6 +5,7 @@ use muda::ContextMenu;
 use raw_window_handle::{RawWindowHandle, Win32WindowHandle};
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Gdi::MapWindowPoints;
+use windows::Win32::UI::HiDpi::GetDpiForWindow;
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::UI::ViewManagement::{UIColorType, UISettings};
@@ -57,7 +58,7 @@ impl App {
         let window = event_loop.create_window(attrs)?;
         let window = Arc::new(window);
 
-        let state = MainWindowView::new(window.clone(), host)?;
+        let state = MainWindowView::new(window.clone(), host, self.taskbar_hwnd)?;
 
         let proxy = self.proxy.clone();
 
@@ -84,7 +85,8 @@ enum DraggingState {
 pub struct MainWindowView {
     window: Arc<Window>,
     host: HWND,
-    curr_width: i32,
+    taskbar_hwnd: HWND,
+    size: (i32, i32),
     workspaces: Vec<crate::komorebi::Workspace>,
     context_menu: muda::Menu,
     dragging_state: DraggingState,
@@ -94,13 +96,14 @@ pub struct MainWindowView {
 }
 
 impl MainWindowView {
-    fn new(window: Arc<Window>, host: HWND) -> anyhow::Result<Self> {
+    fn new(window: Arc<Window>, host: HWND, taskbar_hwnd: HWND) -> anyhow::Result<Self> {
         let workspaces = crate::komorebi::read_workspaces().unwrap_or_default();
 
         let mut view = Self {
             window,
             host,
-            curr_width: 0,
+            taskbar_hwnd,
+            size: (0, 0),
             workspaces,
             context_menu: Self::create_context_menu()?,
             dragging_state: DraggingState::None,
@@ -164,34 +167,33 @@ impl MainWindowView {
         Ok(rect)
     }
 
-    const WORKSPACE_MARGIN: egui::Margin = egui::Margin::symmetric(1, 0);
+    fn taskbar_client_rect(&self) -> anyhow::Result<RECT> {
+        let mut rect = RECT::default();
+        unsafe { GetClientRect(self.taskbar_hwnd, &mut rect) }?;
+        Ok(rect)
+    }
 
-    fn resize_host_to_rect(&mut self, rect: egui::Rect) -> anyhow::Result<()> {
-        let rect = rect + Self::WORKSPACE_MARGIN;
-        let width = rect.width() as f64;
-        let width = self.window.scale_factor() * width;
-        let width = width as i32;
+    const WORKSPACES_MARGIN: egui::Margin = egui::Margin::same(1);
 
-        if width != self.curr_width {
-            self.curr_width = width;
+    fn resize_host_to_rect(&mut self, rect: egui::Rect, ppp: f32) -> anyhow::Result<()> {
+        let rect = rect + Self::WORKSPACES_MARGIN;
+        let rect = rect * ppp;
 
-            if let Ok(rect) = self.host_client_rect() {
-                tracing::debug!("Resizing host to match content rect");
+        let width = rect.width() as i32;
 
-                unsafe {
-                    SetWindowPos(
-                        self.host,
-                        None,
-                        0,
-                        0,
-                        width,
-                        rect.bottom - rect.top,
-                        SWP_NOMOVE,
-                    )?;
-                }
-            }
+        // height always matches the taskbar height
+        let taskbar_rect = self.taskbar_client_rect()?;
+        let height = taskbar_rect.bottom - taskbar_rect.top;
+
+        let (curr_width, curr_height) = self.size;
+
+        if curr_width != width || curr_height != height {
+            self.size = (width, height);
+
+            tracing::debug!("Resizing host to match content rect");
+
+            unsafe { SetWindowPos(self.host, None, 0, 0, width, height, SWP_NOMOVE) }?;
         }
-
         Ok(())
     }
 
@@ -333,7 +335,7 @@ impl MainWindowView {
         };
         ctx.set_visuals(visuals);
 
-        let frame = egui::Frame::central_panel(&ctx.style()).inner_margin(Self::WORKSPACE_MARGIN);
+        let frame = egui::Frame::central_panel(&ctx.style()).inner_margin(Self::WORKSPACES_MARGIN);
 
         egui::CentralPanel::default().frame(frame)
     }
@@ -360,7 +362,7 @@ impl EguiView for MainWindowView {
 
     fn handle_app_message(
         &mut self,
-        _ctx: &egui::Context,
+        ctx: &egui::Context,
         _event_loop: &ActiveEventLoop,
         message: &AppMessage,
     ) -> anyhow::Result<()> {
@@ -369,6 +371,11 @@ impl EguiView for MainWindowView {
             AppMessage::MenuEvent(e) if e.id() == Self::M_MOVE_ID => self.start_host_dragging()?,
             AppMessage::MenuEvent(e) if e.id() == Self::M_QUIT_ID => self.close_host()?,
             AppMessage::SystemSettingsChanged => self.update_system_colors()?,
+            AppMessage::DpiChanged => {
+                let dpi = unsafe { GetDpiForWindow(self.host) } as f32;
+                let ppp = dpi / USER_DEFAULT_SCREEN_DPI as f32;
+                ctx.set_pixels_per_point(ppp);
+            }
             _ => {}
         }
 
@@ -378,7 +385,7 @@ impl EguiView for MainWindowView {
     fn update(&mut self, ctx: &egui::Context) {
         self.transparent_panel(ctx).show(ctx, |ui| {
             let response = self.workspaces_row(ui);
-            if let Err(e) = self.resize_host_to_rect(response.rect) {
+            if let Err(e) = self.resize_host_to_rect(response.rect, ctx.pixels_per_point()) {
                 tracing::error!("Failed to resize host to rect: {e}");
             }
         });

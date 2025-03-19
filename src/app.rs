@@ -12,6 +12,7 @@ pub enum AppMessage {
     UpdateWorkspaces(Vec<crate::komorebi::Workspace>),
     MenuEvent(muda::MenuEvent),
     SystemSettingsChanged,
+    DpiChanged,
 }
 
 pub struct App {
