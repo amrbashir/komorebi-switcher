@@ -22,6 +22,6 @@ jobs:
       - run: cargo build
       - uses: actions/upload-artifact@v4
         with:
-          name: komorebi-switcher-pr-$(echo ${{ github.event.number }}).zip
+          name: komorebi-switcher-pr-${{ github.event.number }}.zip
           path: target/debug/komorebi-switcher.exe
           overwrite: true
