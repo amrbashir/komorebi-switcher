@@ -25,6 +25,12 @@ struct WndProcUserData {
     taskbar_hwnd: HWND,
 }
 
+impl WndProcUserData {
+    unsafe fn from_hwnd(hwnd: HWND) -> &'static mut Self {
+        &mut *(GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut Self)
+    }
+}
+
 unsafe extern "system" fn enum_child_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let children = &mut *(lparam.0 as *mut Vec<HWND>);
     children.push(hwnd);
@@ -58,8 +64,7 @@ unsafe extern "system" fn wndproc_host(
 
         // Notify app to update DPI
         WM_DPICHANGED_AFTERPARENT => {
-            let userdata = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
-            let userdata = &*(userdata as *const WndProcUserData);
+            let userdata = WndProcUserData::from_hwnd(hwnd);
             if let Err(e) = userdata.proxy.send_event(AppMessage::DpiChanged) {
                 tracing::error!("Failed to send `AppMessage::DpiChanged`: {e}")
             }
@@ -71,8 +76,7 @@ unsafe extern "system" fn wndproc_host(
             let window_pos = &mut *(lparam.0 as *mut WINDOWPOS);
             window_pos.y = 0;
 
-            let userdata = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
-            let userdata = &*(userdata as *const WndProcUserData);
+            let userdata = WndProcUserData::from_hwnd(hwnd);
 
             let mut rect = RECT::default();
             if GetClientRect(userdata.taskbar_hwnd, &mut rect).is_ok() {
@@ -126,8 +130,7 @@ unsafe extern "system" fn wndproc_host(
 
         // Notify app to update system settings like accent colors
         WM_SETTINGCHANGE => {
-            let userdata = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
-            let userdata = &*(userdata as *const WndProcUserData);
+            let userdata = WndProcUserData::from_hwnd(hwnd);
             if let Err(e) = userdata.proxy.send_event(AppMessage::SystemSettingsChanged) {
                 tracing::error!("Failed to send `AppMessage::SystemSettingsChanged`: {e}")
             }

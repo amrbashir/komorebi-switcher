@@ -180,7 +180,6 @@ impl MainWindowView {
         let rect = rect * ppp;
 
         let width = rect.width() as i32;
-
         // height always matches the taskbar height
         let taskbar_rect = self.taskbar_client_rect()?;
         let height = taskbar_rect.bottom - taskbar_rect.top;
