@@ -57,7 +57,7 @@ impl App {
     ) -> anyhow::Result<()> {
         match event {
             AppMessage::CreateResizeWindow { host, info } => {
-                self.create_resize_window(&event_loop, HWND(*host as _), *info)?
+                self.create_resize_window(event_loop, HWND(*host as _), *info)?
             }
 
             AppMessage::CloseWindow(window_id) => {
