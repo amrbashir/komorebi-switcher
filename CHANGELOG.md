@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The `Move` context menu item has been renamed to `Move & Resize`
+
+### Added
+
+- Added `Move & Resize` to the tray icon menu.
+- The new `Move & Resize` will open a dialog that allows fine editing of the position and size values for the switcher.
+
 ## [0.5.0] - 2025-03-25
 
 ### Added
