@@ -24,7 +24,7 @@ impl App {
 
         let attrs = WindowAttributes::default()
             .with_class_name(class_name)
-            .with_inner_size(PhysicalSize::new(400, 400))
+            .with_inner_size(PhysicalSize::new(300, 200))
             .with_owner_window(host.0 as _)
             .with_no_redirection_bitmap(true);
 
@@ -101,9 +101,9 @@ impl EguiView for ResizeWindowView {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::Grid::new("grid")
-                .num_columns(3)
-                .max_col_width(ui.available_width() / 3.0)
-                .min_col_width(ui.available_width() / 3.0)
+                .num_columns(2)
+                .min_col_width(ui.available_width() / 2.0)
+                .max_col_width(ui.available_width() / 2.0)
                 .show(ui, |ui| {
                     ui.label("x");
                     ui.add(egui::DragValue::new(&mut self.info.x));
@@ -114,19 +114,23 @@ impl EguiView for ResizeWindowView {
                     ui.end_row();
 
                     ui.label("width");
-                    ui.add_enabled(
-                        !self.info.auto_width,
-                        egui::DragValue::new(&mut self.info.width),
-                    );
-                    ui.checkbox(&mut self.info.auto_width, "Auto width");
+                    ui.horizontal(|ui| {
+                        ui.add_enabled(
+                            !self.info.auto_width,
+                            egui::DragValue::new(&mut self.info.width),
+                        );
+                        ui.checkbox(&mut self.info.auto_width, "Auto width");
+                    });
                     ui.end_row();
 
                     ui.label("height");
-                    ui.add_enabled(
-                        !self.info.auto_height,
-                        egui::DragValue::new(&mut self.info.height),
-                    );
-                    ui.checkbox(&mut self.info.auto_height, "Auto height");
+                    ui.horizontal(|ui| {
+                        ui.add_enabled(
+                            !self.info.auto_height,
+                            egui::DragValue::new(&mut self.info.height),
+                        );
+                        ui.checkbox(&mut self.info.auto_height, "Auto height");
+                    });
                     ui.end_row();
                 });
 
