@@ -13,8 +13,10 @@ mod egui_glue;
 mod host;
 mod komorebi;
 mod main_window;
+mod resize_window;
 mod tray_icon;
 mod widgets;
+mod window_registry_info;
 
 fn run() -> anyhow::Result<()> {
     let evl = EventLoop::<AppMessage>::with_user_event().build()?;
@@ -28,7 +30,7 @@ fn run() -> anyhow::Result<()> {
 
     let taskbar_hwnd = unsafe { FindWindowW(w!("Shell_TrayWnd"), PCWSTR::null()) }?;
 
-    let mut app = App::new(taskbar_hwnd, evl.create_proxy());
+    let mut app = App::new(taskbar_hwnd, evl.create_proxy())?;
     evl.run_app(&mut app)?;
 
     Ok(())
