@@ -27,7 +27,7 @@ pub struct WindowRegistryInfo {
 impl Default for WindowRegistryInfo {
     fn default() -> Self {
         WindowRegistryInfo {
-            x: 16,
+            x: 5,
             y: 0,
             width: 200,
             height: 40,
