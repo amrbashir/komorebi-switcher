@@ -38,10 +38,11 @@ impl Default for WindowRegistryInfo {
 }
 
 impl WindowRegistryInfo {
-    pub fn load() -> anyhow::Result<Self> {
-        tracing::debug!("Loading window info from registry...");
+    pub fn load(subkey: &str) -> anyhow::Result<Self> {
+        tracing::debug!("Loading window info from registry for {subkey}...");
 
         let key = CURRENT_USER.create(APP_REG_KEY)?;
+        let key = key.create(subkey)?;
 
         let defaults = WindowRegistryInfo::default();
 
@@ -72,10 +73,11 @@ impl WindowRegistryInfo {
         Ok(info)
     }
 
-    pub fn save(&self) -> anyhow::Result<()> {
-        tracing::debug!("Storing window info into registry: {self:?}");
+    pub fn save(&self, subkey: &str) -> anyhow::Result<()> {
+        tracing::debug!("Storing window info into registry for {subkey}: {self:?}");
 
         let key = CURRENT_USER.create(APP_REG_KEY)?;
+        let key = key.create(subkey)?;
         key.set_string(WINDOW_POS_X_KEY, &self.x.to_string())?;
         key.set_string(WINDOW_POS_Y_KEY, &self.y.to_string())?;
         if self.width > 0 {

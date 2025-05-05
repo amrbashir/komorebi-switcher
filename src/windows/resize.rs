@@ -14,8 +14,10 @@ impl App {
     pub fn create_resize_window(
         &mut self,
         event_loop: &ActiveEventLoop,
+        window_id: WindowId,
         host: HWND,
         initial_info: WindowRegistryInfo,
+        subkey: String,
     ) -> anyhow::Result<()> {
         #[cfg(debug_assertions)]
         let class_name = "komorebi-switcher-debug::resize-window";
@@ -33,16 +35,18 @@ impl App {
         let window = Arc::new(window);
 
         let state = ResizeWindowView {
-            window_id: window.id(),
+            window_id,
+            self_window_id: window.id(),
             proxy: self.proxy.clone(),
             host,
             initial_info,
             info: initial_info,
+            subkey,
         };
 
         let window = EguiWindow::new(window, &self.wgpu_instance, state)?;
 
-        self.windows.insert(window.id(), window);
+        self.windows.insert(window.id(), None, window);
 
         Ok(())
     }
@@ -50,26 +54,28 @@ impl App {
 
 struct ResizeWindowView {
     window_id: WindowId,
+    self_window_id: WindowId,
     host: HWND,
     proxy: EventLoopProxy<AppMessage>,
     initial_info: WindowRegistryInfo,
     info: WindowRegistryInfo,
+    subkey: String,
 }
 
 impl ResizeWindowView {
     fn close_window(&self) -> anyhow::Result<()> {
-        let message = AppMessage::CloseWindow(self.window_id);
+        let message = AppMessage::CloseWindow(self.self_window_id);
         self.proxy.send_event(message).map_err(Into::into)
     }
 
     fn notify_window_info_changes(&self) -> anyhow::Result<()> {
-        let message = AppMessage::NotifyWindowInfoChanges(self.info);
+        let message = AppMessage::NotifyWindowInfoChanges(self.window_id, self.info);
         self.proxy.send_event(message).map_err(Into::into)
     }
 
     fn save(&mut self) -> anyhow::Result<()> {
         self.info.apply(self.host)?;
-        self.info.save()?;
+        self.info.save(&self.subkey)?;
         self.notify_window_info_changes()?;
         self.close_window()
     }

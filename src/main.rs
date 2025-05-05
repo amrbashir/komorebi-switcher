@@ -4,21 +4,20 @@ use std::fmt::Display;
 
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
-use windows::core::*;
-use windows::Win32::UI::WindowsAndMessaging::*;
 use winit::event_loop::EventLoop;
 
 use crate::app::{App, AppMessage};
 
 mod app;
 mod egui_glue;
-mod host;
 mod komorebi;
-mod main_window;
-mod resize_window;
+mod multi_map;
+mod taskbar;
 mod tray_icon;
+mod utils;
 mod widgets;
 mod window_registry_info;
+mod windows;
 
 fn error_dialog<T: Display>(error: T) {
     rfd::MessageDialog::new()
@@ -39,9 +38,7 @@ fn run() -> anyhow::Result<()> {
         }
     }));
 
-    let taskbar_hwnd = unsafe { FindWindowW(w!("Shell_TrayWnd"), PCWSTR::null()) }?;
-
-    let mut app = App::new(taskbar_hwnd, evl.create_proxy())?;
+    let mut app = App::new(evl.create_proxy())?;
     evl.run_app(&mut app)?;
 
     Ok(())
