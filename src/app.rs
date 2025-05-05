@@ -121,10 +121,7 @@ impl App {
                         return true;
                     };
 
-                    let monitor = state
-                        .monitors
-                        .iter()
-                        .any(|m| &m.serial_number_id == key);
+                    let monitor = state.monitors.iter().any(|m| &m.serial_number_id == key);
 
                     if !monitor {
                         tracing::info!("Removing switcher window for {key}");
