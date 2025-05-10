@@ -6,36 +6,29 @@ use crate::utils;
 #[derive(Debug, Clone, Copy)]
 pub struct Taskbar {
     pub hwnd: HWND,
-    pub x: i32,
-    pub y: i32,
+    pub rect: RECT,
 }
 
-impl Taskbar {
-    pub const TASKBAR_CLASS_NAME: &'static str = "Shell_TrayWnd";
-    pub const TASKBAR_SECONDARY_CLASS_NAME: &'static str = "Shell_SecondaryTrayWnd";
+pub const TASKBAR_CLASS_NAME: &'static str = "Shell_TrayWnd";
+pub const TASKBAR_SECONDARY_CLASS_NAME: &'static str = "Shell_SecondaryTrayWnd";
 
-    fn is_taskbar(hwnd: HWND) -> bool {
-        let class_name = utils::get_class_name(hwnd);
-        class_name == Self::TASKBAR_CLASS_NAME || class_name == Self::TASKBAR_SECONDARY_CLASS_NAME
-    }
+fn is_taskbar(hwnd: HWND) -> bool {
+    let class_name = utils::get_class_name(hwnd);
+    class_name == TASKBAR_CLASS_NAME || class_name == TASKBAR_SECONDARY_CLASS_NAME
+}
 
-    pub fn all() -> Vec<Self> {
-        utils::TopLevelWindowsIterator::new()
-            .iter()
-            .filter_map(|hwnd| {
-                let hwnd = hwnd.ok()?;
-                if Self::is_taskbar(hwnd) {
-                    let mut rect = Default::default();
-                    unsafe { GetWindowRect(hwnd, &mut rect) }.ok()?;
-                    Some(Self {
-                        hwnd,
-                        x: rect.left,
-                        y: rect.top,
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
+pub fn all() -> Vec<Taskbar> {
+    utils::TopLevelWindowsIterator::new()
+        .iter()
+        .filter_map(|hwnd| {
+            let hwnd = hwnd.ok()?;
+            if is_taskbar(hwnd) {
+                let mut rect = Default::default();
+                unsafe { GetWindowRect(hwnd, &mut rect) }.ok()?;
+                Some(Taskbar { hwnd, rect })
+            } else {
+                None
+            }
+        })
+        .collect()
 }

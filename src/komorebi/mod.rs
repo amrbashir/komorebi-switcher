@@ -2,6 +2,7 @@ use std::io::{BufReader, Read};
 use std::time::Duration;
 
 use client::*;
+use windows::Win32::Foundation::RECT;
 use winit::event_loop::EventLoopProxy;
 
 use crate::app::AppMessage;
@@ -22,8 +23,7 @@ pub struct Monitor {
     pub index: usize,
     pub serial_number_id: String,
     pub workspaces: Vec<Workspace>,
-    pub x: i32,
-    pub y: i32,
+    pub rect: RECT,
 }
 
 impl Monitor {
@@ -49,8 +49,12 @@ impl Monitor {
             name: monitor.name,
             serial_number_id: monitor.serial_number_id,
             workspaces,
-            x: monitor.size.left,
-            y: monitor.size.top,
+            rect: RECT {
+                left: monitor.size.left,
+                top: monitor.size.top,
+                right: monitor.size.right,
+                bottom: monitor.size.bottom,
+            },
         }
     }
 }

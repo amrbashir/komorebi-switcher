@@ -1,4 +1,3 @@
-use anyhow::Context;
 use windows::Win32::Foundation::HWND;
 use winit::application::ApplicationHandler;
 use winit::event::{StartCause, WindowEvent};
@@ -7,7 +6,7 @@ use winit::window::WindowId;
 
 use crate::egui_glue::EguiWindow;
 use crate::multi_map::MultiMap;
-use crate::taskbar::Taskbar;
+use crate::utils::RECTExt;
 use crate::window_registry_info::WindowRegistryInfo;
 
 #[derive(Debug, Clone)]
@@ -61,10 +60,9 @@ impl App {
     }
 
     fn create_switchers(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
-        let taskbars = Taskbar::all();
+        let taskbars = crate::taskbar::all();
 
-        tracing::info!("Found {} taskbars: {taskbars:?}", taskbars.len());
-        tracing::info!("Komorebi monitors: {:?}", self.komorebi_state.monitors);
+        tracing::debug!("Found {} taskbars: {taskbars:?}", taskbars.len());
 
         for monitor in self.komorebi_state.monitors.clone().into_iter() {
             // skip already existing window for this monitor
@@ -73,12 +71,22 @@ impl App {
                 continue;
             }
 
-            let taskbar = taskbars
-                .iter()
-                .find(|t| t.x == monitor.x && t.y == monitor.y)
-                .context("Failed to find taskbar for monitor")?;
+            let Some(taskbar) = taskbars.iter().find(|tb| monitor.rect.contains(&tb.rect)) else {
+                tracing::warn!(
+                    "Failed to find taskbar for monitor: {}-{} {:?}",
+                    monitor.name,
+                    monitor.serial_number_id,
+                    monitor.rect
+                );
+                continue;
+            };
 
-            tracing::info!("Creating switcher window for {}", monitor.name);
+            tracing::info!(
+                "Creating switcher window for monitor: {}-{} {:?}",
+                monitor.name,
+                monitor.serial_number_id,
+                monitor.rect,
+            );
 
             let window = self.create_switcher_window(event_loop, *taskbar, monitor)?;
 

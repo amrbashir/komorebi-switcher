@@ -62,6 +62,8 @@ impl<T> Ring<T> {
 pub struct KRect {
     pub left: i32,
     pub top: i32,
+    pub right: i32,
+    pub bottom: i32,
 }
 
 #[derive(Debug, Deserialize)]
