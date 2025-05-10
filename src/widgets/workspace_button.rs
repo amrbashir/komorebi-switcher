@@ -107,7 +107,7 @@ impl egui::Widget for WorkspaceButton<'_> {
         let target_opacity = (self.workspace.focused || !self.workspace.is_empty) as i32 as f32;
         let opacity = egui_animation::animate_eased(
             ui.ctx(),
-            format!("Opacity{}", self.workspace.idx),
+            format!("Opacity{}", self.workspace.index),
             target_opacity,
             0.3,
             egui_animation::easing::sine_out,
@@ -121,7 +121,7 @@ impl egui::Widget for WorkspaceButton<'_> {
         };
         let line_width = egui_animation::animate_eased(
             ui.ctx(),
-            format!("Width{}", self.workspace.idx),
+            format!("Width{}", self.workspace.index),
             target_line_width,
             0.2,
             egui_animation::easing::sine_out,

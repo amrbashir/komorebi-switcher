@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use muda::{ContextMenu, Menu, MenuItem};
 use raw_window_handle::{RawWindowHandle, Win32WindowHandle};
-use windows::core::{w, PCWSTR};
 use windows::Win32::Foundation::*;
 use windows::Win32::UI::HiDpi::GetDpiForWindow;
 use windows::Win32::UI::WindowsAndMessaging::*;
@@ -15,18 +14,22 @@ use winit::window::{Window, WindowAttributes};
 
 use crate::app::{App, AppMessage};
 use crate::egui_glue::{EguiView, EguiWindow};
-use crate::host::create_host;
-use crate::komorebi::listen_for_workspaces;
+use crate::taskbar::Taskbar;
 use crate::widgets::WorkspaceButton;
 use crate::window_registry_info::WindowRegistryInfo;
 
+mod host;
+
 impl App {
-    pub fn create_main_window(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
-        tracing::info!("Creating main window");
+    pub fn create_switcher_window(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        taskbar: Taskbar,
+        monitor_state: crate::komorebi::Monitor,
+    ) -> anyhow::Result<EguiWindow> {
+        let window_info = WindowRegistryInfo::load(&monitor_state.serial_number_id)?;
 
-        let window_info = WindowRegistryInfo::load()?;
-
-        let host = unsafe { create_host(self.taskbar_hwnd, self.proxy.clone(), &window_info) }?;
+        let host = unsafe { host::create_host(taskbar.hwnd, self.proxy.clone(), &window_info) }?;
 
         let mut attrs = WindowAttributes::default();
         attrs = attrs.with_inner_size(PhysicalSize::new(window_info.width, window_info.height));
@@ -53,59 +56,53 @@ impl App {
         let window = event_loop.create_window(attrs)?;
         let window = Arc::new(window);
 
-        let state = MainWindowView::new(
+        let state = SwitcherWindowView::new(
             window.clone(),
             host,
-            self.taskbar_hwnd,
+            taskbar,
             self.proxy.clone(),
             window_info,
+            monitor_state,
         )?;
 
-        let proxy = self.proxy.clone();
-
-        std::thread::spawn(move || listen_for_workspaces(proxy));
-
-        let window = EguiWindow::new(window, &self.wgpu_instance, state)?;
-
-        self.windows.insert(window.id(), window);
-
-        Ok(())
+        EguiWindow::new(window, &self.wgpu_instance, state)
     }
 }
 
-pub struct MainWindowView {
+struct ContextMenuState {
+    menu: muda::Menu,
+    quit: muda::MenuItem,
+    move_resize: muda::MenuItem,
+}
+
+pub struct SwitcherWindowView {
     window: Arc<Window>,
     host: HWND,
-    taskbar_hwnd: HWND,
+    taskbar: Taskbar,
     proxy: EventLoopProxy<AppMessage>,
-    context_menu: muda::Menu,
-    workspaces: Vec<crate::komorebi::Workspace>,
+    context_menu: ContextMenuState,
+    monitor_state: crate::komorebi::Monitor,
     accent_light2_color: Option<egui::Color32>,
     accent_color: Option<egui::Color32>,
     forgreound_color: Option<egui::Color32>,
     window_info: WindowRegistryInfo,
 }
 
-impl MainWindowView {
+impl SwitcherWindowView {
     fn new(
         window: Arc<Window>,
         host: HWND,
-        taskbar_hwnd: HWND,
+        taskbar: Taskbar,
         proxy: EventLoopProxy<AppMessage>,
         window_info: WindowRegistryInfo,
+        monitor_state: crate::komorebi::Monitor,
     ) -> anyhow::Result<Self> {
-        let workspaces = crate::komorebi::read_workspaces()
-            .inspect_err(|e| {
-                tracing::error!("Failed to read workspaces: {e}");
-            })
-            .unwrap_or_default();
-
         let mut view = Self {
             window,
             host,
             proxy,
-            taskbar_hwnd,
-            workspaces,
+            taskbar,
+            monitor_state,
             context_menu: Self::create_context_menu()?,
             accent_color: None,
             accent_light2_color: None,
@@ -120,22 +117,26 @@ impl MainWindowView {
         Ok(view)
     }
 
-    /// The ID of the "Move & Resize" menu item.
-    const M_MOVE_RESIZE_ID: &str = "main-window-move-resize";
-    /// The ID of the "Quit" menu item.
-    const M_QUIT_ID: &str = "main-window-quit";
-
-    fn create_context_menu() -> anyhow::Result<muda::Menu> {
-        let quit = MenuItem::with_id(Self::M_QUIT_ID, "Quit", true, None);
-        let move_resize = MenuItem::with_id(Self::M_MOVE_RESIZE_ID, "Move & Resize", true, None);
-        Menu::with_items(&[&move_resize, &quit]).map_err(Into::into)
+    fn create_context_menu() -> anyhow::Result<ContextMenuState> {
+        let quit = MenuItem::new("Quit", true, None);
+        let move_resize = MenuItem::new("Move & Resize", true, None);
+        let menu = Menu::with_items(&[&move_resize, &quit])?;
+        Ok(ContextMenuState {
+            menu,
+            quit,
+            move_resize,
+        })
     }
 
     fn show_context_menu(&self) {
         tracing::debug!("Showing context menu");
 
         let hwnd = self.host.0 as isize;
-        unsafe { self.context_menu.show_context_menu_for_hwnd(hwnd, None) };
+        unsafe {
+            self.context_menu
+                .menu
+                .show_context_menu_for_hwnd(hwnd, None)
+        };
     }
 
     fn update_system_colors(&mut self) -> anyhow::Result<()> {
@@ -164,7 +165,7 @@ impl MainWindowView {
 
     fn taskbar_height(&self) -> anyhow::Result<i32> {
         let mut rect = RECT::default();
-        unsafe { GetClientRect(self.taskbar_hwnd, &mut rect) }?;
+        unsafe { GetClientRect(self.taskbar.hwnd, &mut rect) }?;
         Ok(rect.bottom - rect.top)
     }
 
@@ -195,27 +196,31 @@ impl MainWindowView {
 
             tracing::debug!("Resizing host to match content rect");
 
-            self.window_info.save()?;
+            self.window_info
+                .save(&self.monitor_state.serial_number_id)?;
             unsafe { SetWindowPos(self.host, None, 0, 0, width, height, SWP_NOMOVE) }?;
         }
 
         Ok(())
     }
 
-    pub const IN_RESIZE_PROP: PCWSTR = w!("komorebi::in_resize");
-
     fn start_host_dragging(&self) -> anyhow::Result<()> {
         let host = self.host.0 as isize;
         let info = self.window_info;
-        let message = AppMessage::CreateResizeWindow { host, info };
+        let message = AppMessage::CreateResizeWindow {
+            host,
+            info,
+            subkey: self.monitor_state.serial_number_id.clone(),
+            window_id: self.window.id(),
+        };
         self.proxy.send_event(message)?;
-        unsafe { SetPropW(self.host, Self::IN_RESIZE_PROP, Some(HANDLE(1 as _))) }?;
+        unsafe { SetPropW(self.host, host::IN_RESIZE_PROP, Some(HANDLE(1 as _))) }?;
         Ok(())
     }
 
     fn update_window_info(&mut self, info: &WindowRegistryInfo) -> anyhow::Result<()> {
         self.window_info = *info;
-        unsafe { RemovePropW(self.host, Self::IN_RESIZE_PROP) }?;
+        unsafe { RemovePropW(self.host, host::IN_RESIZE_PROP) }?;
         Ok(())
     }
 
@@ -269,7 +274,7 @@ impl MainWindowView {
             ui.scope(|ui| {
                 ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
 
-                for workspace in self.workspaces.iter() {
+                for workspace in self.monitor_state.workspaces.iter() {
                     let btn = WorkspaceButton::new(workspace)
                         .dark_mode(Some(self.is_system_dark_mode()))
                         .line_focused_color_opt(self.line_focused_color())
@@ -277,7 +282,10 @@ impl MainWindowView {
                         .line_on_top(self.is_taskbar_on_top());
 
                     if ui.add(btn).clicked() {
-                        crate::komorebi::change_workspace(workspace.idx);
+                        crate::komorebi::change_workspace(
+                            self.monitor_state.index,
+                            workspace.index,
+                        );
                     }
                 }
             })
@@ -298,7 +306,7 @@ impl MainWindowView {
     }
 }
 
-impl EguiView for MainWindowView {
+impl EguiView for SwitcherWindowView {
     fn handle_app_message(
         &mut self,
         ctx: &egui::Context,
@@ -306,19 +314,43 @@ impl EguiView for MainWindowView {
         message: &AppMessage,
     ) -> anyhow::Result<()> {
         match message {
-            AppMessage::UpdateWorkspaces(workspaces) => self.workspaces = workspaces.clone(),
-            AppMessage::MenuEvent(e) if e.id() == Self::M_MOVE_RESIZE_ID => {
+            AppMessage::UpdateKomorebiState(state) => {
+                self.monitor_state = state
+                    .monitors
+                    .iter()
+                    .find(|m| m.serial_number_id == self.monitor_state.serial_number_id)
+                    .cloned()
+                    .unwrap_or_default();
+            }
+
+            AppMessage::MenuEvent(e) if e.id() == self.context_menu.move_resize.id() => {
                 self.start_host_dragging()?
             }
-            AppMessage::StartMoveResize => self.start_host_dragging()?,
-            AppMessage::MenuEvent(e) if e.id() == Self::M_QUIT_ID => self.close_host()?,
+
+            AppMessage::MenuEvent(e) if e.id() == self.context_menu.quit.id() => {
+                self.close_host()?
+            }
+
+            AppMessage::StartMoveResize(serial_number_id)
+                if serial_number_id == &self.monitor_state.serial_number_id =>
+            {
+                self.start_host_dragging()?
+            }
+
             AppMessage::SystemSettingsChanged => self.update_system_colors()?,
-            AppMessage::NotifyWindowInfoChanges(info) => self.update_window_info(info)?,
+
+            AppMessage::NotifyWindowInfoChanges(window_id, info)
+                if *window_id == self.window.id() =>
+            {
+                self.update_window_info(info)?
+            }
+
             AppMessage::DpiChanged => {
                 let dpi = unsafe { GetDpiForWindow(self.host) } as f32;
                 let ppp = dpi / USER_DEFAULT_SCREEN_DPI as f32;
                 ctx.set_pixels_per_point(ppp);
             }
+
             _ => {}
         }
 

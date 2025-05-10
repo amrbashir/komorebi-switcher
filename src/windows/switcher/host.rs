@@ -5,13 +5,15 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 use winit::event_loop::EventLoopProxy;
 
 use crate::app::AppMessage;
-use crate::main_window::MainWindowView;
+use crate::utils;
 use crate::window_registry_info::WindowRegistryInfo;
 
 #[cfg(debug_assertions)]
 const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher-debug::host");
 #[cfg(not(debug_assertions))]
 const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher::host");
+
+pub const IN_RESIZE_PROP: PCWSTR = w!("komorebi::in_resize");
 
 pub unsafe fn create_host(
     taskbar_hwnd: HWND,
@@ -31,8 +33,7 @@ pub unsafe fn create_host(
         ..Default::default()
     };
 
-    let atom = RegisterClassW(&wc);
-    debug_assert!(atom != 0);
+    RegisterClassW(&wc);
 
     let userdata = WndProcUserData { proxy };
 
@@ -105,7 +106,7 @@ unsafe extern "system" fn wndproc_host(
         // Resize children when this host is resized
         WM_SIZE => {
             // Skip resizing children if this host is in resize mode
-            let prop = GetPropW(hwnd, MainWindowView::IN_RESIZE_PROP);
+            let prop = GetPropW(hwnd, IN_RESIZE_PROP);
             if prop.0 as isize != 0 {
                 return DefWindowProcW(hwnd, msg, wparam, lparam);
             }
@@ -115,7 +116,7 @@ unsafe extern "system" fn wndproc_host(
                 let width = rect.right - rect.left;
                 let height = rect.bottom - rect.top;
 
-                for child in enum_child_windows(hwnd) {
+                for child in utils::enum_child_windows(hwnd) {
                     if let Err(e) = SetWindowPos(
                         child,
                         None,
@@ -141,7 +142,7 @@ unsafe extern "system" fn wndproc_host(
 
         // Close children when this host is closed
         WM_CLOSE => {
-            for child in enum_child_windows(hwnd) {
+            for child in utils::enum_child_windows(hwnd) {
                 let _ = SendMessageW(child, WM_CLOSE, None, None);
             }
 
@@ -155,21 +156,4 @@ unsafe extern "system" fn wndproc_host(
     }
 
     DefWindowProcW(hwnd, msg, wparam, lparam)
-}
-
-unsafe extern "system" fn enum_child_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
-    let children = &mut *(lparam.0 as *mut Vec<HWND>);
-    children.push(hwnd);
-    true.into()
-}
-
-fn enum_child_windows(hwnd: HWND) -> Vec<HWND> {
-    let mut children = Vec::new();
-
-    let children_ptr = &mut children as *mut Vec<HWND>;
-    let children_ptr = LPARAM(children_ptr as _);
-
-    let _ = unsafe { EnumChildWindows(Some(hwnd), Some(enum_child_proc), children_ptr) };
-
-    children
 }

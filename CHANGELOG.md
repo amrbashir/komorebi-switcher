@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## Added
+
+- Added support for multi monitor
+
 ## [0.6.4] - 2025-04-19
 
 ## Added

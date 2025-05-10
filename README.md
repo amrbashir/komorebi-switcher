@@ -29,6 +29,9 @@ irm "https://github.com/amrbashir/komorebi-switcher/releases/latest/download/kom
 
   - **Quit**: close the switcher
 
+> [!TIP]
+> You can also open the context menu from the tray icon.
+
 ## Development
 
 1. Install [Rust](https://rustup.rs/)
