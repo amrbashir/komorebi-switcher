@@ -63,6 +63,9 @@ impl App {
     fn create_switchers(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
         let taskbars = Taskbar::all();
 
+        tracing::info!("Found {} taskbars: {taskbars:?}", taskbars.len());
+        tracing::info!("Komorebi monitors: {:?}", self.komorebi_state.monitors);
+
         for monitor in self.komorebi_state.monitors.clone().into_iter() {
             // skip already existing window for this monitor
             let monitor_key = monitor.serial_number_id.clone();
