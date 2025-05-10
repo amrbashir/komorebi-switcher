@@ -9,8 +9,8 @@ pub struct Taskbar {
     pub rect: RECT,
 }
 
-pub const TASKBAR_CLASS_NAME: &'static str = "Shell_TrayWnd";
-pub const TASKBAR_SECONDARY_CLASS_NAME: &'static str = "Shell_SecondaryTrayWnd";
+pub const TASKBAR_CLASS_NAME: &str = "Shell_TrayWnd";
+pub const TASKBAR_SECONDARY_CLASS_NAME: &str = "Shell_SecondaryTrayWnd";
 
 fn is_taskbar(hwnd: HWND) -> bool {
     let class_name = utils::get_class_name(hwnd);
