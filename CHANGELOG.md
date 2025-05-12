@@ -4,7 +4,7 @@
 
 ## Fixed
 
-- Fixed deserialization of komorebi monitor information
+- Fixed failing to create switcher due to failure while deserializaing komorebi monitor information
 
 ## [0.7.0] - 2025-05-12
 
