@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## Fixed
+
+- Fixed deserialization of komorebi monitor information
+
 ## [0.7.0] - 2025-05-12
 
 ## Added

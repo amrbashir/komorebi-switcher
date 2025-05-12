@@ -73,11 +73,11 @@ impl WindowRegistryInfo {
         Ok(info)
     }
 
-    pub fn save(&self, subkey: &str) -> anyhow::Result<()> {
-        tracing::debug!("Storing window info into registry for {subkey}: {self:?}");
+    pub fn save(&self, switcher_subkey: &str) -> anyhow::Result<()> {
+        tracing::debug!("Storing window info into registry for {switcher_subkey}: {self:?}");
 
         let key = CURRENT_USER.create(APP_REG_KEY)?;
-        let key = key.create(subkey)?;
+        let key = key.create(switcher_subkey)?;
         key.set_string(WINDOW_POS_X_KEY, &self.x.to_string())?;
         key.set_string(WINDOW_POS_Y_KEY, &self.y.to_string())?;
         if self.width > 0 {

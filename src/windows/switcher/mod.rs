@@ -27,7 +27,7 @@ impl App {
         taskbar: Taskbar,
         monitor_state: crate::komorebi::Monitor,
     ) -> anyhow::Result<EguiWindow> {
-        let window_info = WindowRegistryInfo::load(&monitor_state.serial_number_id)?;
+        let window_info = WindowRegistryInfo::load(&monitor_state.id)?;
 
         let host = unsafe { host::create_host(taskbar.hwnd, self.proxy.clone(), &window_info) }?;
 
@@ -196,8 +196,7 @@ impl SwitcherWindowView {
 
             tracing::debug!("Resizing host to match content rect");
 
-            self.window_info
-                .save(&self.monitor_state.serial_number_id)?;
+            self.window_info.save(&self.monitor_state.id)?;
             unsafe { SetWindowPos(self.host, None, 0, 0, width, height, SWP_NOMOVE) }?;
         }
 
@@ -210,7 +209,7 @@ impl SwitcherWindowView {
         let message = AppMessage::CreateResizeWindow {
             host,
             info,
-            subkey: self.monitor_state.serial_number_id.clone(),
+            subkey: self.monitor_state.id.clone(),
             window_id: self.window.id(),
         };
         self.proxy.send_event(message)?;
@@ -318,7 +317,7 @@ impl EguiView for SwitcherWindowView {
                 self.monitor_state = state
                     .monitors
                     .iter()
-                    .find(|m| m.serial_number_id == self.monitor_state.serial_number_id)
+                    .find(|m| m.id == self.monitor_state.id)
                     .cloned()
                     .unwrap_or_default();
             }
@@ -332,7 +331,7 @@ impl EguiView for SwitcherWindowView {
             }
 
             AppMessage::StartMoveResize(serial_number_id)
-                if serial_number_id == &self.monitor_state.serial_number_id =>
+                if serial_number_id == &self.monitor_state.id =>
             {
                 self.start_host_dragging()?
             }

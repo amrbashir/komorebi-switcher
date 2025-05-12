@@ -66,8 +66,8 @@ impl App {
 
         for monitor in self.komorebi_state.monitors.clone().into_iter() {
             // skip already existing window for this monitor
-            let monitor_key = monitor.serial_number_id.clone();
-            if self.windows.contains_key_alt(&Some(monitor_key.clone())) {
+            let monitor_id = monitor.id.clone();
+            if self.windows.contains_key_alt(&Some(monitor_id.clone())) {
                 continue;
             }
 
@@ -75,7 +75,7 @@ impl App {
                 tracing::warn!(
                     "Failed to find taskbar for monitor: {}-{} {:?}",
                     monitor.name,
-                    monitor.serial_number_id,
+                    monitor.id,
                     monitor.rect
                 );
                 continue;
@@ -84,13 +84,13 @@ impl App {
             tracing::info!(
                 "Creating switcher window for monitor: {}-{} {:?}",
                 monitor.name,
-                monitor.serial_number_id,
+                monitor.id,
                 monitor.rect,
             );
 
             let window = self.create_switcher_window(event_loop, *taskbar, monitor)?;
 
-            self.windows.insert(window.id(), Some(monitor_key), window);
+            self.windows.insert(window.id(), Some(monitor_id), window);
         }
 
         Ok(())
@@ -132,7 +132,7 @@ impl App {
                         return true;
                     };
 
-                    let monitor = state.monitors.iter().any(|m| &m.serial_number_id == key);
+                    let monitor = state.monitors.iter().any(|m| &m.id == key);
 
                     if !monitor {
                         tracing::info!("Removing switcher window for {key}");

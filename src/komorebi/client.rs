@@ -69,7 +69,8 @@ pub struct KRect {
 #[derive(Debug, Deserialize)]
 pub struct KMonitor {
     pub name: String,
-    pub serial_number_id: String,
+    pub device_id: Option<String>,
+    pub serial_number_id: Option<String>,
     pub workspaces: Ring<KWorkspace>,
     pub size: KRect,
 }

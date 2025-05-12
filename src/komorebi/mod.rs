@@ -21,7 +21,7 @@ pub struct Workspace {
 pub struct Monitor {
     pub name: String,
     pub index: usize,
-    pub serial_number_id: String,
+    pub id: String,
     pub workspaces: Vec<Workspace>,
     pub rect: RECT,
 }
@@ -44,10 +44,15 @@ impl Monitor {
             })
             .collect();
 
+        let id = monitor
+            .serial_number_id
+            .or(monitor.device_id)
+            .unwrap_or(monitor.name.clone());
+
         Self {
             index,
             name: monitor.name,
-            serial_number_id: monitor.serial_number_id,
+            id,
             workspaces,
             rect: RECT {
                 left: monitor.size.left,
@@ -143,8 +148,12 @@ pub fn listen_for_state(proxy: EventLoopProxy<AppMessage>) {
             continue;
         }
 
-        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&buffer) else {
-            continue;
+        let value = match serde_json::from_slice::<serde_json::Value>(&buffer) {
+            Ok(value) => value,
+            Err(e) => {
+                tracing::error!("Failed to parse komorebi message: {e}");
+                continue;
+            }
         };
 
         tracing::debug!(
@@ -157,8 +166,12 @@ pub fn listen_for_state(proxy: EventLoopProxy<AppMessage>) {
                 .unwrap_or_default()
         );
 
-        let Ok(notification) = serde_json::from_value::<KNotification>(value) else {
-            continue;
+        let notification = match serde_json::from_value::<KNotification>(value) {
+            Ok(notification) => notification,
+            Err(e) => {
+                tracing::error!("Failed to parse komorebi notification: {e}");
+                continue;
+            }
         };
 
         if let Err(e) = proxy.send_event(AppMessage::UpdateKomorebiState(notification.state.into()))
