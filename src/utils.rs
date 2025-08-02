@@ -58,15 +58,53 @@ impl Iterator for TopLevelWindowsIterator {
 
 pub trait RECTExt {
     fn contains(&self, other: &RECT) -> bool;
+    fn intersects(&self, other: &RECT) -> bool;
 }
 
 impl RECTExt for RECT {
     fn contains(&self, other: &RECT) -> bool {
-        // Check if the taskbar (other) is within or intersects with the monitor (self)
-        // For proper containment, all corners of the taskbar should be within the monitor bounds
-        other.left >= self.left
-            && other.top >= self.top
-            && other.right <= self.right
-            && other.bottom <= self.bottom
+        // Check if the taskbar (other) belongs to this monitor (self)
+        // Use intersection-based approach which is more robust than strict containment
+        if !self.intersects(other) {
+            return false;
+        }
+        
+        // Calculate overlap area to ensure significant overlap
+        let overlap_left = self.left.max(other.left);
+        let overlap_top = self.top.max(other.top);
+        let overlap_right = self.right.min(other.right);
+        let overlap_bottom = self.bottom.min(other.bottom);
+        
+        let overlap_width = (overlap_right - overlap_left).max(0) as f32;
+        let overlap_height = (overlap_bottom - overlap_top).max(0) as f32;
+        let overlap_area = overlap_width * overlap_height;
+        
+        let other_width = (other.right - other.left).max(0) as f32;
+        let other_height = (other.bottom - other.top).max(0) as f32;
+        let other_area = other_width * other_height;
+        
+        // Require at least 80% overlap to consider the taskbar as belonging to this monitor
+        let overlap_ratio = if other_area > 0.0 {
+            overlap_area / other_area
+        } else {
+            0.0
+        };
+        
+        let matches = overlap_ratio >= 0.8;
+        
+        tracing::debug!(
+            "Monitor {:?} vs Taskbar {:?}: overlap_ratio={:.2}, matches={}",
+            self, other, overlap_ratio, matches
+        );
+        
+        matches
+    }
+    
+    fn intersects(&self, other: &RECT) -> bool {
+        // Check if rectangles intersect at all
+        !(other.left >= self.right 
+            || other.right <= self.left 
+            || other.top >= self.bottom 
+            || other.bottom <= self.top)
     }
 }
