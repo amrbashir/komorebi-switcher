@@ -62,6 +62,11 @@ pub trait RECTExt {
 
 impl RECTExt for RECT {
     fn contains(&self, other: &RECT) -> bool {
-        self.left <= other.left && self.top <= other.top
+        // Check if the taskbar (other) is within or intersects with the monitor (self)
+        // For proper containment, all corners of the taskbar should be within the monitor bounds
+        other.left >= self.left
+            && other.top >= self.top
+            && other.right <= self.right
+            && other.bottom <= self.bottom
     }
 }

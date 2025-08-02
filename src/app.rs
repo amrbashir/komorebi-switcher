@@ -73,19 +73,21 @@ impl App {
 
             let Some(taskbar) = taskbars.iter().find(|tb| monitor.rect.contains(&tb.rect)) else {
                 tracing::warn!(
-                    "Failed to find taskbar for monitor: {}-{} {:?}",
+                    "Failed to find taskbar for monitor: {}-{} {:?}. Available taskbars: {:#?}",
                     monitor.name,
                     monitor.id,
-                    monitor.rect
+                    monitor.rect,
+                    taskbars
                 );
                 continue;
             };
 
             tracing::info!(
-                "Creating switcher window for monitor: {}-{} {:?}",
+                "Creating switcher window for monitor: {}-{} {:?} with taskbar: {:?}",
                 monitor.name,
                 monitor.id,
                 monitor.rect,
+                taskbar
             );
 
             let window = self.create_switcher_window(event_loop, *taskbar, monitor)?;
