@@ -19,9 +19,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+
       - run: cargo build
+
       - uses: actions/upload-artifact@v4
         with:
           name: komorebi-switcher-pr-${{ github.event.number }}.zip
           path: target/debug/komorebi-switcher.exe
           overwrite: true
+
+      - uses: actions/github-script@v7
+        with:
+            script: |
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `🎉 Build successful! Download the artifact: [komorebi-switcher-pr-${{ github.event.number }}.zip](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) (commit: ${{ github.sha }})`
+              })
