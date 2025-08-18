@@ -41,15 +41,35 @@ jobs:
               
               // Build comment components
               const artifactName = 'komorebi-switcher-pr-${{ github.event.number }}-${{ github.sha }}.zip';
-              const downloadUrl = 'https://github.com/${{ github.repository }}' +
-                                `/actions/runs/${{ github.run_id }}/artifacts/${artifactId}`;
-              const commitSha = '${{ github.sha }}';
-              
+              const downloadUrl = 'https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${artifactId}`;
               const commentBody = `🎉 Build successful! Download the artifact: [${artifactName}](${downloadUrl})`;
               
-              github.rest.issues.createComment({
+              // Check for existing comment from this bot
+              const comments = await github.rest.issues.listComments({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: commentBody
-              })
+                repo: context.repo.repo
+              });
+              
+              const botComment = comments.data.find(comment => 
+                comment.user.login === 'github-actions[bot]' && 
+                comment.body.includes('🎉 Build successful!')
+              );
+              
+              if (botComment) {
+                // Update existing comment
+                await github.rest.issues.updateComment({
+                  comment_id: botComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: commentBody
+                });
+              } else {
+                // Create new comment
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: commentBody
+                });
+              }
