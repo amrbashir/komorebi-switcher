@@ -57,8 +57,10 @@ impl Monitor {
             rect: RECT {
                 left: monitor.size.left,
                 top: monitor.size.top,
-                right: monitor.size.right,
-                bottom: monitor.size.bottom,
+                // komorebi uses right and bottom as width and height
+                // so we need to convert them to right and bottom coordinates
+                right: monitor.size.left + monitor.size.right,
+                bottom: monitor.size.top + monitor.size.bottom,
             },
         }
     }

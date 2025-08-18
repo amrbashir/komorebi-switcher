@@ -81,10 +81,11 @@ impl App {
             };
 
             tracing::info!(
-                "Creating switcher window for monitor: {}-{} {:?}",
+                "Creating switcher window for monitor: {}-{} {:?} on taskbar: {:?}",
                 monitor.name,
                 monitor.id,
                 monitor.rect,
+                taskbar.hwnd
             );
 
             let window = self.create_switcher_window(event_loop, *taskbar, monitor)?;

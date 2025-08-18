@@ -65,6 +65,9 @@ pub trait RECTExt {
 
 impl RECTExt for RECT {
     fn contains(&self, other: &RECT) -> bool {
-        self.left <= other.left && self.top <= other.top
+        self.left <= other.left
+            && self.top <= other.top
+            && self.right >= other.right
+            && self.bottom >= other.bottom
     }
 }

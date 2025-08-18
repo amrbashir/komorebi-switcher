@@ -130,7 +130,7 @@ impl WindowRegistryInfo {
 fn get_str(k: &windows_registry::Key, key: &str, default: i32) -> i32 {
     k.get_string(key)
         .inspect_err(|_| {
-            tracing::debug!("Key not found: {key}, setting default value: {default}");
+            tracing::warn!("Registry {key} not found, creating it with default value: {default}");
             let _ = k.set_string(key, &default.to_string());
         })
         .map_err(|e| anyhow::anyhow!(e))
@@ -144,7 +144,7 @@ fn get_str(k: &windows_registry::Key, key: &str, default: i32) -> i32 {
 fn get_bool(k: &windows_registry::Key, key: &str, default: bool) -> bool {
     k.get_u32(key)
         .inspect_err(|_| {
-            tracing::debug!("Key not found: {key}, setting default value: {default}");
+            tracing::warn!("Registry {key} not found, creating it with default value: {default}");
             let _ = k.set_u32(key, default as _);
         })
         .map(|v| v != 0)
