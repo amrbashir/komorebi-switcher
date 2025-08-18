@@ -29,18 +29,20 @@ jobs:
       - uses: actions/upload-artifact@v4
         id: upload-artifact
         with:
-          name: komorebi-switcher-pr-${{ github.event.number }}-${{ github.sha }}.zip
+          name: komorebi-switcher-pr-${{ github.event.number }}-${{ github.event.pull_request.head.sha }}.zip
           path: target/debug/komorebi-switcher.exe
           overwrite: true
 
       - uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
         with:
             script: |
               // Get the artifact ID from the upload step
               const artifactId = '${{ steps.upload-artifact.outputs.artifact-id }}';
               
               // Build comment components
-              const artifactName = 'komorebi-switcher-pr-${{ github.event.number }}-${{ github.sha }}.zip';
+              const commitSha = '${{ github.event.pull_request.head.sha }}';
+              const artifactName = `komorebi-switcher-pr-${{ github.event.number }}-${commitSha}.zip`;
               const downloadUrl = 'https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${artifactId}`;
               const commentBody = `🎉 Build successful! Download the artifact: [${artifactName}](${downloadUrl})`;
               
