@@ -13,15 +13,69 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+
       - run: cargo build
+
       - uses: actions/upload-artifact@v4
+        id: upload-artifact
         with:
-          name: komorebi-switcher-pr-${{ github.event.number }}.zip
+          name: komorebi-switcher-pr-${{ github.event.number }}-${{ github.event.pull_request.head.sha }}.zip
           path: target/debug/komorebi-switcher.exe
           overwrite: true
+
+      - uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+            script: |
+              // Get the artifact ID from the upload step
+              const artifactId = '${{ steps.upload-artifact.outputs.artifact-id }}';
+              
+              // Build comment components
+              const commitSha = '${{ github.event.pull_request.head.sha }}';
+              const prNumber = '${{ github.event.number }}';
+              const repository = '${{ github.repository }}';
+              const runId = '${{ github.run_id }}';
+              
+              const artifactName = `komorebi-switcher-pr-${prNumber}-${commitSha}.zip`;
+              const downloadUrl = `https://github.com/${repository}/actions/runs/${runId}/artifacts/${artifactId}`;
+              const commentBody = `🎉 Build successful! Download the artifact: [${artifactName}](${downloadUrl})`;
+              
+              // Check for existing comment from this bot
+              const comments = await github.rest.issues.listComments({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+              
+              const botComment = comments.data.find(comment => 
+                comment.user.login === 'github-actions[bot]' && 
+                comment.body.includes('🎉 Build successful!')
+              );
+              
+              if (botComment) {
+                // Update existing comment
+                await github.rest.issues.updateComment({
+                  comment_id: botComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: commentBody
+                });
+              } else {
+                // Create new comment
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: commentBody
+                });
+              }
