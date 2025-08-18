@@ -45,7 +45,7 @@ jobs:
                                 `/actions/runs/${{ github.run_id }}/artifacts/${artifactId}`;
               const commitSha = '${{ github.sha }}';
               
-              const commentBody = `🎉 Build successful! Download the artifact: [${artifactName}](${downloadUrl});
+              const commentBody = `🎉 Build successful! Download the artifact: [${artifactName}](${downloadUrl})`;
               
               github.rest.issues.createComment({
                 issue_number: context.issue.number,
