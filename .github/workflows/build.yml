@@ -27,17 +27,29 @@ jobs:
       - run: cargo build
 
       - uses: actions/upload-artifact@v4
+        id: upload-artifact
         with:
-          name: komorebi-switcher-pr-${{ github.event.number }}.zip
+          name: komorebi-switcher-pr-${{ github.event.number }}-${{ github.sha }}.zip
           path: target/debug/komorebi-switcher.exe
           overwrite: true
 
       - uses: actions/github-script@v7
         with:
             script: |
+              // Get the artifact ID from the upload step
+              const artifactId = '${{ steps.upload-artifact.outputs.artifact-id }}';
+              
+              // Build comment components
+              const artifactName = 'komorebi-switcher-pr-${{ github.event.number }}-${{ github.sha }}.zip';
+              const downloadUrl = 'https://github.com/${{ github.repository }}' +
+                                `/actions/runs/${{ github.run_id }}/artifacts/${artifactId}`;
+              const commitSha = '${{ github.sha }}';
+              
+              const commentBody = `🎉 Build successful! Download the artifact: [${artifactName}](${downloadUrl});
+              
               github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: `🎉 Build successful! Download the artifact: [komorebi-switcher-pr-${{ github.event.number }}.zip](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) (commit: ${{ github.sha }})`
+                body: commentBody
               })
