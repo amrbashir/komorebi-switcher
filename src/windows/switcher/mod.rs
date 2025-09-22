@@ -16,6 +16,7 @@ use crate::app::{App, AppMessage};
 use crate::egui_glue::{EguiView, EguiWindow};
 use crate::taskbar::Taskbar;
 use crate::widgets::WorkspaceButton;
+use crate::widgets::LayoutButton;
 use crate::window_registry_info::WindowRegistryInfo;
 
 mod host;
@@ -287,6 +288,36 @@ impl SwitcherWindowView {
                         );
                     }
                 }
+
+                let layout_btn = LayoutButton::new(crate::komorebi::read_layout().unwrap_or("No Layout".into()))
+                        .dark_mode(Some(self.is_system_dark_mode()))
+                        .line_focused_color_opt(self.line_focused_color())
+                        .text_color_opt(self.forgreound_color)
+                        .line_on_top(self.is_taskbar_on_top());
+
+                let response = ui.add(layout_btn);
+
+                if response.clicked() {
+                    crate::komorebi::cycle_layout(crate::komorebi::KCycleDirection::Next);
+                }
+
+                // handle mouse wheel for layout button
+                ui.input(|i| {
+                    for e in &i.events {
+                        if let egui::Event::MouseWheel{delta, ..} = e {
+                            // y axis for mouse wheel (inverted for some reason)
+                            let delta_y = -delta.y as isize;
+
+                            if response.contains_pointer() {
+                                if delta_y > 0 {
+                                    crate::komorebi::cycle_layout(crate::komorebi::KCycleDirection::Next);
+                                } else {
+                                    crate::komorebi::cycle_layout(crate::komorebi::KCycleDirection::Previous);
+                                }
+                            }
+                        }
+                    }
+                });
             })
         })
         .response

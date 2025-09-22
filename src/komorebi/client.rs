@@ -81,11 +81,31 @@ pub struct KState {
 }
 
 #[derive(Debug, strum::Display, Serialize, Deserialize)]
+pub enum KStateQuery {
+    FocusedMonitorIndex,
+    FocusedWorkspaceIndex,
+    FocusedContainerIndex,
+    FocusedWindowIndex,
+    FocusedWorkspaceName,
+    FocusedWorkspaceLayout, // We can use this to get the layout
+    FocusedContainerKind,
+    Version,
+}
+
+#[derive(Debug, strum::Display, Serialize, Deserialize)]
+pub enum KCycleDirection {
+    Previous,
+    Next,
+}
+
+#[derive(Debug, strum::Display, Serialize, Deserialize)]
 #[serde(tag = "type", content = "content")]
 pub enum KSocketMessage {
     State,
     AddSubscriberSocket(String),
     FocusMonitorWorkspaceNumber(usize, usize),
+    CycleLayout(KCycleDirection),
+    Query(KStateQuery),
 }
 
 #[derive(Debug, strum::Display, Serialize, Deserialize)]
@@ -98,6 +118,7 @@ pub enum KSocketEvent {
     FocusWorkspaceNumbers,
     CycleFocusMonitor,
     CycleFocusWorkspace,
+    CycleLayout,
     ReloadConfiguration,
     ReplaceConfiguration,
     CompleteConfiguration,

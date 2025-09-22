@@ -6,6 +6,7 @@ use windows::Win32::Foundation::RECT;
 use winit::event_loop::EventLoopProxy;
 
 use crate::app::AppMessage;
+pub use crate::komorebi::client::{KCycleDirection};
 
 mod client;
 
@@ -93,12 +94,26 @@ pub fn read_state() -> anyhow::Result<State> {
     Ok(state.into())
 }
 
+pub fn read_layout() -> anyhow::Result<String> {
+    let response = client::send_query(KSocketMessage::Query(KStateQuery::FocusedWorkspaceLayout))?;
+    Ok(response)
+}
+
 pub fn change_workspace(monitor_idx: usize, workspace_idx: usize) {
     tracing::info!("Changing komorebi workspace to {workspace_idx} on monitor {monitor_idx}");
 
     let change_msg = KSocketMessage::FocusMonitorWorkspaceNumber(monitor_idx, workspace_idx);
     if let Err(e) = client::send_message(&change_msg) {
         tracing::error!("Failed to change workspace: {e}")
+    }
+}
+
+pub fn cycle_layout(direction: KCycleDirection) {
+    tracing::info!("Changing to {direction} komorebi layout");
+
+    let change_msg = KSocketMessage::CycleLayout(direction);
+    if let Err(e) = client::send_message(&change_msg) {
+        tracing::error!("Failed to change layout: {e}")
     }
 }
 
