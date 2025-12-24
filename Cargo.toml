@@ -24,10 +24,10 @@ winresource = "0.1"
 anyhow = "1"
 winit = "0.30"
 raw-window-handle = "0.6"
-egui = "0.32"
-egui-winit = "0.32"
-egui-wgpu = "0.32"
-wgpu = "25.0"
+egui = "0.31"
+egui-winit = "0.31"
+egui-wgpu = "0.31"
+wgpu = "24.0"
 pollster = "0.4"
 serde_json = "1.0"
 windows-registry = "0.5"
@@ -40,8 +40,12 @@ strum = { version = "0.27", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
-egui_animation = "0.9"
+egui_animation = "0.8"
 rfd = "0.15.3"
+
+
+[patch.crates-io]
+wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "2f607d3e64d5da618b30c084fb59cf3abacf9aa1" }
 
 [dependencies.windows]
 version = "0.61"
