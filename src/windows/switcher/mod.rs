@@ -203,7 +203,7 @@ impl SwitcherWindowView {
         Ok(())
     }
 
-    fn start_host_dragging(&self) -> anyhow::Result<()> {
+    fn show_move_resize_window(&self) -> anyhow::Result<()> {
         let host = self.host.0 as isize;
         let info = self.window_info;
         let message = AppMessage::CreateResizeWindow {
@@ -323,17 +323,15 @@ impl EguiView for SwitcherWindowView {
             }
 
             AppMessage::MenuEvent(e) if e.id() == self.context_menu.move_resize.id() => {
-                self.start_host_dragging()?
+                self.show_move_resize_window()?
             }
 
             AppMessage::MenuEvent(e) if e.id() == self.context_menu.quit.id() => {
                 self.close_host()?
             }
 
-            AppMessage::StartMoveResize(serial_number_id)
-                if serial_number_id == &self.monitor_state.id =>
-            {
-                self.start_host_dragging()?
+            AppMessage::StartMoveResize(menu_id) if menu_id.ends_with(&self.monitor_state.id) => {
+                self.show_move_resize_window()?
             }
 
             AppMessage::SystemSettingsChanged => self.update_system_colors()?,

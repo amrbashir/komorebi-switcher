@@ -9,6 +9,7 @@
 ### Fixed
 
 - Fixed switcher windows not being recreated when Windows Explorer restarts.
+- Fixed "Move & Resize" tray menu item not triggering resize mode.
 
 ## [0.7.2] - 2025-08-24
 
