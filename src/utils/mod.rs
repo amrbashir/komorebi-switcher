@@ -1,5 +1,7 @@
+mod hwnd;
 mod multi_map;
 
+pub use hwnd::HwndWithDrop;
 pub use multi_map::MultiMap;
 use windows::core::*;
 use windows::Win32::Foundation::*;

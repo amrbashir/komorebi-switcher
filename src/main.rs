@@ -11,6 +11,7 @@ use crate::app::{App, AppMessage};
 mod app;
 mod egui_glue;
 mod komorebi;
+mod message_window;
 mod taskbar;
 mod tray_icon;
 mod utils;
