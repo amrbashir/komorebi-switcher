@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2025-12-24
+
 ### Added
 
 - Added `Recreate Switcher` menu item in tray icon to manually recreate switcher windows.
