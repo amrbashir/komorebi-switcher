@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added `Recreate Switcher` menu item in tray icon to manually recreate switcher windows.
+
+### Fixed
+
+- Fixed switcher windows not being recreated when Windows Explorer restarts.
+
 ## [0.7.2] - 2025-08-24
 
 ### Fixed
