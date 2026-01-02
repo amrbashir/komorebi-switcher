@@ -5,21 +5,23 @@ use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
 use objc2::{define_class, msg_send, DefinedClass, MainThreadOnly};
 use objc2_app_kit::{
-    NSApp, NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSStackView,
-    NSStatusBar, NSStatusItem, NSUserInterfaceLayoutOrientation, NSVariableStatusItemLength,
+    NSApp, NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSStatusBar,
+    NSStatusItem, NSUserInterfaceLayoutOrientation, NSVariableStatusItemLength,
 };
 use objc2_foundation::{
     MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect, NSSize,
 };
 
 use self::workspace_button::WorkspaceButton;
+use self::workspaces_stack_view::WorkspacesStackView;
 
 mod workspace_button;
+mod workspaces_stack_view;
 
 #[derive(Debug)]
 pub struct AppDelegateIvars {
     ns_status_item: OnceCell<Retained<NSStatusItem>>,
-    ns_stack_view: OnceCell<Retained<NSStackView>>,
+    ns_stack_view: OnceCell<Retained<WorkspacesStackView>>,
     workspace_buttons: RefCell<Vec<Retained<WorkspaceButton>>>,
 }
 
@@ -75,7 +77,7 @@ define_class!(
 
             // Create stack view for horizontal button layout
             let stack_view = {
-                let stack = NSStackView::new(mtm);
+                let stack = WorkspacesStackView::new(mtm);
                 stack.setOrientation(NSUserInterfaceLayoutOrientation::Horizontal);
                 stack.setSpacing(2.0);
                 stack
