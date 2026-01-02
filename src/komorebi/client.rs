@@ -1,11 +1,14 @@
 use std::cell::OnceCell;
 use std::io::{BufReader, Read, Write};
+#[cfg(target_os = "macos")]
+use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
+#[cfg(target_os = "windows")]
 use uds_windows::{UnixListener, UnixStream};
 
 #[derive(Debug, Deserialize, Clone)]
@@ -68,7 +71,7 @@ pub struct KRect {
 
 #[derive(Debug, Deserialize)]
 pub struct KMonitor {
-    pub name: String,
+    pub name: Option<String>, // Not provided on macOS
     pub device_id: Option<String>,
     pub serial_number_id: Option<String>,
     pub workspaces: Ring<KWorkspace>,

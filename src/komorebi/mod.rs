@@ -2,12 +2,17 @@ use std::io::{BufReader, Read};
 use std::time::Duration;
 
 use client::*;
-use windows::Win32::Foundation::RECT;
-use winit::event_loop::EventLoopProxy;
-
-use crate::app::AppMessage;
 
 mod client;
+
+#[derive(Debug, Clone, Default, Copy)]
+#[allow(unused)]
+pub struct Rect {
+    pub left: i32,
+    pub top: i32,
+    pub right: i32,
+    pub bottom: i32,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct Workspace {
@@ -18,12 +23,13 @@ pub struct Workspace {
 }
 
 #[derive(Debug, Clone, Default)]
+#[allow(unused)]
 pub struct Monitor {
     pub name: String,
     pub index: usize,
     pub id: String,
     pub workspaces: Vec<Workspace>,
-    pub rect: RECT,
+    pub rect: Rect,
 }
 
 impl Monitor {
@@ -44,17 +50,19 @@ impl Monitor {
             })
             .collect();
 
+        let name = monitor.name.unwrap_or_default();
+
         let id = monitor
             .serial_number_id
             .or(monitor.device_id)
-            .unwrap_or(monitor.name.clone());
+            .unwrap_or(name.clone());
 
         Self {
             index,
-            name: monitor.name,
+            name,
             id,
             workspaces,
-            rect: RECT {
+            rect: Rect {
                 left: monitor.size.left,
                 top: monitor.size.top,
                 // komorebi uses right and bottom as width and height
@@ -107,7 +115,7 @@ const SOCK_NAME: &str = "komorebi-switcher-debug.sock";
 #[cfg(not(debug_assertions))]
 const SOCK_NAME: &str = "komorebi-switcher.sock";
 
-pub fn listen_for_state(proxy: EventLoopProxy<AppMessage>) {
+pub fn listen_for_state(on_new_state: impl Fn(State) + Send + 'static) {
     let socket = loop {
         match client::subscribe(SOCK_NAME) {
             Ok(socket) => break socket,
@@ -178,9 +186,6 @@ pub fn listen_for_state(proxy: EventLoopProxy<AppMessage>) {
             }
         };
 
-        if let Err(e) = proxy.send_event(AppMessage::UpdateKomorebiState(notification.state.into()))
-        {
-            tracing::error!("Failed to send `AppMessage::UpdateWorkspaces`: {e}")
-        }
+        on_new_state(notification.state.into());
     }
 }
