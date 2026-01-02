@@ -27,6 +27,7 @@ impl From<windows::Win32::Foundation::RECT> for Rect {
 }
 
 impl Rect {
+    #[allow(unused)]
     pub fn contains(&self, other: impl Into<Rect>) -> bool {
         let other = other.into();
 

@@ -22,15 +22,14 @@ define_class!(
                 title: &str,
                 action: Option<objc2::runtime::Sel>,
             ) -> Retained<NSMenuItem> {
-                let item = unsafe {
+               unsafe {
                     NSMenuItem::initWithTitle_action_keyEquivalent(
                         NSMenuItem::alloc(mtm),
                         &NSString::from_str(title),
                         action,
                         &NSString::from_str(""),
                     )
-                };
-                item
+                }
             }
 
             // Add title menu item
