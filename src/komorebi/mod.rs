@@ -14,6 +14,29 @@ pub struct Rect {
     pub bottom: i32,
 }
 
+#[cfg(windows)]
+impl From<windows::Win32::Foundation::RECT> for Rect {
+    fn from(rect: windows::Win32::Foundation::RECT) -> Self {
+        Self {
+            left: rect.left,
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
+        }
+    }
+}
+
+impl Rect {
+    pub fn contains(&self, other: impl Into<Rect>) -> bool {
+        let other = other.into();
+
+        self.left <= other.left
+            && self.top <= other.top
+            && self.right >= other.right
+            && self.bottom >= other.bottom
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Workspace {
     pub name: String,

@@ -4,9 +4,9 @@ use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use winit::event_loop::EventLoopProxy;
 
-use crate::app::AppMessage;
-use crate::utils;
-use crate::window_registry_info::WindowRegistryInfo;
+use crate::windows::app::AppMessage;
+use crate::windows::utils;
+use crate::windows::window_registry_info::WindowRegistryInfo;
 
 #[cfg(debug_assertions)]
 const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher-debug::host");

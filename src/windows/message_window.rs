@@ -6,7 +6,7 @@ use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use winit::event_loop::EventLoopProxy;
 
-use crate::app::AppMessage;
+use crate::windows::app::AppMessage;
 
 #[cfg(debug_assertions)]
 const MESSAGE_WINDOW_CLASSNAME: PCWSTR = w!("komorebi-switcher-debug::message-window");

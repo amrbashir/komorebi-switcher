@@ -1,3 +1,7 @@
+use winit::event_loop::EventLoop;
+
+use crate::windows::app::{App, AppMessage};
+
 mod app;
 mod egui_glue;
 mod message_window;

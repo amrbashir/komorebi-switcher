@@ -60,16 +60,3 @@ impl Iterator for TopLevelWindowsIterator {
         }
     }
 }
-
-pub trait RECTExt {
-    fn contains(&self, other: &RECT) -> bool;
-}
-
-impl RECTExt for RECT {
-    fn contains(&self, other: &RECT) -> bool {
-        self.left <= other.left
-            && self.top <= other.top
-            && self.right >= other.right
-            && self.bottom >= other.bottom
-    }
-}
