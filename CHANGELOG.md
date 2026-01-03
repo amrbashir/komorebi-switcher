@@ -5,6 +5,11 @@
 ### Added
 
 - Added support for macOS
+- Added app name and version in context menu
+
+### Changed
+
+- Renamed `Recreate Switcher` menu item to `Refresh`
 
 ## [0.8.0] - 2025-12-24
 

@@ -1,7 +1,7 @@
 use std::num::NonZero;
 use std::sync::Arc;
 
-use muda::{ContextMenu, Menu, MenuItem};
+use muda::{ContextMenu, Menu, MenuItem, PredefinedMenuItem};
 use raw_window_handle::{RawWindowHandle, Win32WindowHandle};
 use windows::Win32::Foundation::*;
 use windows::Win32::UI::HiDpi::GetDpiForWindow;
@@ -71,8 +71,9 @@ impl App {
 
 struct ContextMenuState {
     menu: muda::Menu,
-    quit: muda::MenuItem,
     move_resize: muda::MenuItem,
+    refresh: muda::MenuItem,
+    quit: muda::MenuItem,
 }
 
 pub struct SwitcherWindowView {
@@ -118,13 +119,27 @@ impl SwitcherWindowView {
     }
 
     fn create_context_menu() -> anyhow::Result<ContextMenuState> {
-        let quit = MenuItem::new("Quit", true, None);
         let move_resize = MenuItem::new("Move && Resize", true, None);
-        let menu = Menu::with_items(&[&move_resize, &quit])?;
+        let refresh = MenuItem::new("Refresh", true, None);
+        let separator = PredefinedMenuItem::separator();
+        let title = MenuItem::new(env!("CARGO_PKG_NAME"), false, None);
+        let version = MenuItem::new(&concat!("v", env!("CARGO_PKG_VERSION")), false, None);
+        let quit = MenuItem::new("Quit", true, None);
+        let menu = Menu::with_items(&[
+            &move_resize,
+            &refresh,
+            &separator,
+            &title,
+            &version,
+            &separator,
+            &quit,
+        ])?;
+
         Ok(ContextMenuState {
             menu,
-            quit,
             move_resize,
+            refresh,
+            quit,
         })
     }
 
@@ -324,6 +339,10 @@ impl EguiView for SwitcherWindowView {
 
             AppMessage::MenuEvent(e) if e.id() == self.context_menu.move_resize.id() => {
                 self.show_move_resize_window()?
+            }
+
+            AppMessage::MenuEvent(e) if e.id() == self.context_menu.refresh.id() => {
+                self.proxy.send_event(AppMessage::RecreateSwitcherWindows)?
             }
 
             AppMessage::MenuEvent(e) if e.id() == self.context_menu.quit.id() => {

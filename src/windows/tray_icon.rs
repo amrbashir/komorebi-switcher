@@ -1,4 +1,4 @@
-use muda::Submenu;
+use muda::{PredefinedMenuItem, Submenu};
 use tray_icon::menu::{Menu, MenuItem};
 use tray_icon::TrayIconBuilder;
 use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
@@ -13,7 +13,7 @@ pub struct TrayIcon {
     menu: Menu,
     move_resize: Submenu,
     move_resize_items: Vec<MenuItem>,
-    recreate: MenuItem,
+    refresh: MenuItem,
     quit: MenuItem,
 }
 
@@ -21,10 +21,22 @@ impl TrayIcon {
     pub fn new(proxy: EventLoopProxy<AppMessage>) -> anyhow::Result<Self> {
         let icon = tray_icon::Icon::from_resource(1, Some((32, 32)))?;
 
-        let quit = MenuItem::new("Quit", true, None);
-        let recreate = MenuItem::new("Recreate Switcher", true, None);
         let move_resize = Submenu::new("Move && Resize", true);
-        let menu = Menu::with_items(&[&move_resize, &recreate, &quit])?;
+        let refresh = MenuItem::new("Refresh", true, None);
+        let separator = PredefinedMenuItem::separator();
+        let title = MenuItem::new(env!("CARGO_PKG_NAME"), false, None);
+        let version = MenuItem::new(&concat!("v", env!("CARGO_PKG_VERSION")), false, None);
+        let quit = MenuItem::new("Quit", true, None);
+
+        let menu = Menu::with_items(&[
+            &move_resize,
+            &refresh,
+            &separator,
+            &title,
+            &version,
+            &separator,
+            &quit,
+        ])?;
 
         TrayIconBuilder::new()
             .with_icon(icon)
@@ -38,7 +50,7 @@ impl TrayIcon {
                 menu,
                 move_resize,
                 move_resize_items: vec![],
-                recreate,
+                refresh,
                 quit,
             })
     }
@@ -77,7 +89,7 @@ impl TrayIcon {
                 let id = event.id().0.clone();
                 self.proxy.send_event(AppMessage::StartMoveResize(id))?;
             }
-            AppMessage::MenuEvent(event) if event.id() == self.recreate.id() => {
+            AppMessage::MenuEvent(event) if event.id() == self.refresh.id() => {
                 self.proxy.send_event(AppMessage::RecreateSwitcherWindows)?
             }
             AppMessage::MenuEvent(event) if event.id() == self.quit.id() => event_loop.exit(),

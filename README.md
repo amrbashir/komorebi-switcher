@@ -28,11 +28,12 @@ irm "https://github.com/amrbashir/komorebi-switcher/releases/latest/download/kom
 - <kbd>Left Click</kbd> any workspace to switch to it.
 - <kbd>Right Click</kbd> to open the context menu:
 
-  - **Move & Resize**: Open the move and resize dialog (Windows).
+  - **Move & Resize** (Windows): Open the move and resize dialog.
 
     ![Move and Resize panel](assets/screenshots/move-resize-panel.png)
 
-  - **Quit**: close the switcher
+  - **Refresh** (Windows): Force recreate switcher windows.
+  - **Quit**: Quit the app
 
 > [!TIP]
 > You can also open the context menu from the tray icon on Windows.

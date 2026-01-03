@@ -32,6 +32,20 @@ define_class!(
                 }
             }
 
+            // Add title menu item
+            let app_name = env!("CARGO_PKG_NAME");
+            let title_item = create_item(mtm, app_name, None);
+            title_item.setEnabled(false);
+            menu.addItem(&title_item);
+
+            // Add version menu item
+            let version_item = create_item(mtm, concat!("v", env!("CARGO_PKG_VERSION")), None);
+            version_item.setEnabled(false);
+            menu.addItem(&version_item);
+
+            // Add separator
+            menu.addItem(&NSMenuItem::separatorItem(mtm));
+
             // Create quit menu item
             let quit_item = create_item(mtm, "Quit", Some(sel!(terminate:)));
             menu.addItem(&quit_item);
