@@ -76,7 +76,7 @@ jobs:
               const macosdownloadUrl = `https://github.com/${repository}/actions/runs/${runId}/artifacts/${macosArtifactId}`;
               const macosLink = `- macOS: [${macosArtifactName}](${macosdownloadUrl})`;
 
-              const commentBody = "🎉 Build successful! Download the artifacts:" + "\n" + windowsLink + "\n" + macosLink;
+              const commentBody = "🎉 Build successful!" + "\n" + windowsLink + "\n" + macosLink;
               
               // Check for existing comment from this bot
               const comments = await github.rest.issues.listComments({
