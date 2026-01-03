@@ -8,6 +8,9 @@ cargo update -p komorebi-switcher # update the lock file
 $path = "installer/installer.nsi"
 (Get-Content $path) -replace "VERSION `"[0-9]+.[0-9]+.[0-9]+`"", "VERSION `"$version`"" | Set-Content $path
 
+$path = "installer/Info.plist"
+(Get-Content $path) -replace "<string>[0-9]+.[0-9]+.[0-9]+</string>", "<string>$version</string>" | Set-Content $path
+
 $path = "CHANGELOG.md"
 $date = Get-Date -Format "yyyy-MM-dd"
 (Get-Content $path) -replace "## \[Unreleased\]", "## [Unreleased]`n`n## [$version] - $date" | Set-Content $path
