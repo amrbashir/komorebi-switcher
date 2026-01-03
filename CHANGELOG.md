@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-01-04
+
 ### Fixed
 
 - Fixed app icon on macOS

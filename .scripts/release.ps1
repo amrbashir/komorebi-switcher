@@ -16,7 +16,7 @@ $date = Get-Date -Format "yyyy-MM-dd"
 (Get-Content $path) -replace "## \[Unreleased\]", "## [Unreleased]`n`n## [$version] - $date" | Set-Content $path
 
 git add .
-git commit -m "release: v$version";
+git commit -m "release: v$version"
 git push
 git tag "v$version"
 git push --tags
