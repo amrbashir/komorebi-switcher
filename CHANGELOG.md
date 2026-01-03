@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-01-03
+
 ### Added
 
 - Added support for macOS
