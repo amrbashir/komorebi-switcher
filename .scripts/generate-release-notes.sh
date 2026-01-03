@@ -13,7 +13,7 @@ is_in_latest_release=false
 cat << EOF >> "$out"
 > [!TIP]
 >
-> on macOS, On macOS, downloaded apps are quarantined by default. To fix this, run:
+> on macOS, downloaded apps are quarantined by default. To fix this, run:
 > \`\`\`bash
 > xattr -d com.apple.quarantine /Applications/komorebi-switcher.app
 > \`\`\`
