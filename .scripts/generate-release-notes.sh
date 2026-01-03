@@ -9,6 +9,16 @@ is_in_latest_release=false
 # Clear output file
 > "$out"
 
+# Add macOS quarantine notice
+cat << EOF >> "$out"
+> [!TIP]
+>
+> on macOS, On macOS, downloaded apps are quarantined by default. To fix this, run:
+> \`\`\`bash
+> xattr -d com.apple.quarantine /Applications/komorebi-switcher.app
+> \`\`\`
+EOF
+
 # Extract latest release notes
 while IFS= read -r line; do
     # Skip [Unreleased] section

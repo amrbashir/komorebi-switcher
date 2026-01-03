@@ -16,11 +16,27 @@ A minimal workspace switcher for the [Komorebi](https://github.com/LGUG2Z/komore
   </picture>
 </a>
 
+> [!TIP]
+>
+> on macOS, On macOS, downloaded apps are quarantined by default. To fix this, run:
+>
+> ```bash
+> xattr -d com.apple.quarantine /Applications/komorebi-switcher.app
+> ```
+
 Or through PowerShell (Windows):
 
 ```powershell
 irm "https://github.com/amrbashir/komorebi-switcher/releases/latest/download/komorebi-switcher-setup.exe" -OutFile "komorebi-switcher-setup.exe"
 & "./komorebi-switcher-setup.exe"
+```
+
+Or through Bash (macOS):
+
+```bash
+curl -sSf -LO "https://github.com/amrbashir/komorebi-switcher/releases/latest/download/komorebi-switcher.app.zip"
+unzip -o komorebi-switcher.app.zip -d /Applications
+xattr -d com.apple.quarantine /Applications/komorebi-switcher.app
 ```
 
 ## Usage
