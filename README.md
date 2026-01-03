@@ -19,7 +19,8 @@ A minimal workspace switcher for the [Komorebi](https://github.com/LGUG2Z/komore
 Or using scoop (Windows):
 
 ```powershell
-TODO:
+scoop bucket add amrbashir https://github.com/amrbashir/scoop-bucket
+scoop install amrbashir/komorebi-switcher
 ```
 
 Or using Homebrew (macOS):
