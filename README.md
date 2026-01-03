@@ -20,7 +20,7 @@ Or using scoop (Windows):
 
 ```powershell
 scoop bucket add amrbashir https://github.com/amrbashir/scoop-bucket
-scoop install amrbashir/komorebi-switcher
+scoop install komorebi-switcher
 ```
 
 Or using Homebrew (macOS):
