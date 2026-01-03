@@ -33,7 +33,6 @@ jobs:
           name: windows-artifacts
           path: |
             dist/*.exe
-            dist/*.zip
 
   release-macos:
     runs-on: macos-latest
