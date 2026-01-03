@@ -12,11 +12,11 @@ use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::{Window, WindowAttributes};
 
-use crate::app::{App, AppMessage};
-use crate::egui_glue::{EguiView, EguiWindow};
-use crate::taskbar::Taskbar;
-use crate::widgets::WorkspaceButton;
-use crate::window_registry_info::WindowRegistryInfo;
+use crate::windows::app::{App, AppMessage};
+use crate::windows::egui_glue::{EguiView, EguiWindow};
+use crate::windows::taskbar::Taskbar;
+use crate::windows::widgets::WorkspaceButton;
+use crate::windows::window_registry_info::WindowRegistryInfo;
 
 mod host;
 

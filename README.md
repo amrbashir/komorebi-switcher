@@ -2,10 +2,11 @@
 
 # komorebi-switcher
 
-A minimal workspace switcher for the [Komorebi](https://github.com/LGUG2Z/komorebi/) tiling window manager, seamlessly integrated the Windows 10/11 taskbar.
+A minimal workspace switcher for the [Komorebi](https://github.com/LGUG2Z/komorebi/) tiling window manager, seamlessly integrated the Windows 10/11 taskbar or macOS menubar.
 
-![Image showcasing komorebi switcher in Windows 11 dark mode](assets/screenshots/taskbar-dark.jpg)
-![Image showcasing komorebi switcher in Windows 11 light mode](assets/screenshots/taskbar-light.jpg)
+![Image showcasing komorebi-switcher in Windows 11 dark mode](assets/screenshots/taskbar-dark.jpg)
+![Image showcasing komorebi-switcher in Windows 11 light mode](assets/screenshots/taskbar-light.jpg)
+![Image showcasing komorebi-switcher in macOS menubar](assets/screenshots/menubar.png)
 
 ## Install
 
@@ -15,7 +16,7 @@ A minimal workspace switcher for the [Komorebi](https://github.com/LGUG2Z/komore
   </picture>
 </a>
 
-Or through PowerShell:
+Or through PowerShell (Windows):
 
 ```powershell
 irm "https://github.com/amrbashir/komorebi-switcher/releases/latest/download/komorebi-switcher-setup.exe" -OutFile "komorebi-switcher-setup.exe"
@@ -27,14 +28,14 @@ irm "https://github.com/amrbashir/komorebi-switcher/releases/latest/download/kom
 - <kbd>Left Click</kbd> any workspace to switch to it.
 - <kbd>Right Click</kbd> to open the context menu:
 
-  - **Move & Resize**: Open the move and resize dialog.
+  - **Move & Resize**: Open the move and resize dialog (Windows).
 
     ![Move and Resize panel](assets/screenshots/move-resize-panel.png)
 
   - **Quit**: close the switcher
 
 > [!TIP]
-> You can also open the context menu from the tray icon.
+> You can also open the context menu from the tray icon on Windows.
 
 ## Development
 

@@ -1,7 +1,7 @@
 use windows::Win32::Foundation::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 
-use crate::utils;
+use crate::windows::utils;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Taskbar {

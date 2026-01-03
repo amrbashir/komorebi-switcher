@@ -3,7 +3,7 @@ use tray_icon::menu::{Menu, MenuItem};
 use tray_icon::TrayIconBuilder;
 use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 
-use crate::app::AppMessage;
+use crate::windows::app::AppMessage;
 
 pub struct TrayIcon {
     #[allow(unused)]

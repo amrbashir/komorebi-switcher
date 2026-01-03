@@ -12,7 +12,10 @@ concurrency:
 
 jobs:
   clippy:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        target: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.target }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

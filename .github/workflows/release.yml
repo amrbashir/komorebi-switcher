@@ -9,11 +9,12 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  release-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
       - uses: dtolnay/rust-toolchain@stable
+
       - name: install nsis
         run: |
           iwr -useb get.scoop.sh -outfile 'install.ps1'
@@ -26,20 +27,61 @@ jobs:
       - run: ./.scripts/build.ps1
       - run: ./.scripts/create-installer.ps1
 
-      - name: generate checksums.txt
+      - name: upload windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: |
+            dist/*.exe
+            dist/*.zip
+
+  release-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dtolnay/rust-toolchain@stable
+      
+      - name: install create-dmg
         run: |
-          echo "$((Get-FileHash ./dist/komorebi-switcher.exe).Hash.ToLower())  komorebi-switcher.exe" >> checksums.txt
-          echo "$((Get-FileHash ./dist/komorebi-switcher.zip).Hash.ToLower())  komorebi-switcher.zip" >> checksums.txt
-          echo "$((Get-FileHash ./dist/komorebi-switcher-setup.exe).Hash.ToLower())  komorebi-switcher-setup.exe" >> checksums.txt
+          brew install create-dmg
+
+      - run: ./.scripts/build.sh
+      - run: ./.scripts/create-app.sh
+      - run: ./.scripts/create-dmg.sh
+
+      - run: zip -r ./dist/komorebi-switcher.app.zip ./dist/komorebi-switcher.app
+
+      - name: upload macos artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-artifacts
+          path: |
+            dist/*.app.zip
+            dist/*.dmg
+
+  release:
+    needs: [release-windows, release-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: download windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-artifacts
+          path: dist/
+
+      - name: download macos artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-artifacts
+          path: dist/
       
       - name: generate release notes
-        run: .scripts/generate-release-notes.ps1
+        run: ./.scripts/generate-release-notes.sh
 
       - name: release
         uses: softprops/action-gh-release@v2
         with:
           body_path: RELEASE_NOTES.md
-          files: |
-            ./dist/*.exe
-            ./dist/*.zip
-            ./checksums.txt
+          files: dist/*

@@ -4,9 +4,9 @@ use winit::event::{StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::window::WindowId;
 
-use crate::egui_glue::EguiWindow;
-use crate::utils::{HwndWithDrop, MultiMap, RECTExt};
-use crate::window_registry_info::WindowRegistryInfo;
+use crate::windows::egui_glue::EguiWindow;
+use crate::windows::utils::{HwndWithDrop, MultiMap};
+use crate::windows::window_registry_info::WindowRegistryInfo;
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {
@@ -31,7 +31,7 @@ pub struct App {
     pub wgpu_instance: wgpu::Instance,
     pub proxy: EventLoopProxy<AppMessage>,
     pub windows: MultiMap<WindowId, Option<String>, EguiWindow>,
-    pub tray_icon: Option<crate::tray_icon::TrayIcon>,
+    pub tray_icon: Option<crate::windows::tray_icon::TrayIcon>,
     pub komorebi_state: crate::komorebi::State,
     #[allow(unused)]
     pub message_window: HwndWithDrop,
@@ -44,16 +44,23 @@ impl App {
             ..Default::default()
         });
 
-        let tray_icon = crate::tray_icon::TrayIcon::new(proxy.clone()).ok();
+        let tray_icon = crate::windows::tray_icon::TrayIcon::new(proxy.clone()).ok();
 
         let komorebi_state = crate::komorebi::read_state().unwrap_or_default();
 
-        let message_window = unsafe { crate::message_window::create(proxy.clone())? };
+        let message_window = unsafe { crate::windows::message_window::create(proxy.clone())? };
         let message_window = HwndWithDrop(message_window);
 
+        // Start listening for komorebi state changes
         {
             let proxy = proxy.clone();
-            std::thread::spawn(move || crate::komorebi::listen_for_state(proxy));
+            std::thread::spawn(move || {
+                crate::komorebi::listen_for_state(move |new_state| {
+                    if let Err(e) = proxy.send_event(AppMessage::UpdateKomorebiState(new_state)) {
+                        tracing::error!("Failed to send komorebi state update: {e}");
+                    }
+                })
+            });
         }
 
         Ok(Self {
@@ -67,7 +74,7 @@ impl App {
     }
 
     fn create_switchers(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
-        let taskbars = crate::taskbar::all();
+        let taskbars = crate::windows::taskbar::all();
 
         tracing::debug!("Found {} taskbars: {taskbars:?}", taskbars.len());
 
@@ -78,7 +85,7 @@ impl App {
                 continue;
             }
 
-            let Some(taskbar) = taskbars.iter().find(|tb| monitor.rect.contains(&tb.rect)) else {
+            let Some(taskbar) = taskbars.iter().find(|tb| monitor.rect.contains(tb.rect)) else {
                 tracing::warn!(
                     "Failed to find taskbar for monitor: {}-{} {:?}",
                     monitor.name,
