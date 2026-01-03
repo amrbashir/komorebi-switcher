@@ -49,7 +49,8 @@ jobs:
       - run: ./.scripts/create-app.sh
       - run: ./.scripts/create-dmg.sh
 
-      - run: zip -r ./dist/komorebi-switcher.app.zip ./dist/komorebi-switcher.app
+      - run: zip -r ./komorebi-switcher.app.zip ./komorebi-switcher.app
+        working-directory: ./dist
 
       - name: upload macos artifacts
         uses: actions/upload-artifact@v4
