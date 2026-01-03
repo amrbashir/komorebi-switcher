@@ -49,15 +49,11 @@ jobs:
       - run: ./.scripts/create-app.sh
       - run: ./.scripts/create-dmg.sh
 
-      - run: zip -r ./komorebi-switcher.app.zip ./komorebi-switcher.app
-        working-directory: ./dist
-
       - name: upload macos artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-artifacts
           path: |
-            dist/*.app.zip
             dist/*.dmg
 
   release:
