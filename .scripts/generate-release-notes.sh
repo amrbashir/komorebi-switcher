@@ -28,6 +28,7 @@ done < "$path"
 
 # Add macOS quarantine notice
 cat << EOF >> "$out"
+---
 > [!TIP]
 >
 > on macOS, downloaded apps are quarantined by default. To fix this, run:
