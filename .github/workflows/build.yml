@@ -31,7 +31,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         id: upload
         with:
-          name: komorebi-switcher-windows-pr-${{ github.event.number }}-${{ github.event.pull_request.head.sha }}.zip
+          name: komorebi-switcher-windows-pr-${{ github.event.number }}-${{ github.event.pull_request.head.sha }}
           path: target/debug/komorebi-switcher.exe
           overwrite: true
 
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         id: upload
         with:
-          name: komorebi-switcher-macos-pr-${{ github.event.number }}-${{ github.event.pull_request.head.sha }}.zip
+          name: komorebi-switcher-macos-pr-${{ github.event.number }}-${{ github.event.pull_request.head.sha }}
           path: target/debug/komorebi-switcher
           overwrite: true
 
