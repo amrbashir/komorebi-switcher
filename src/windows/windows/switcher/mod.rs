@@ -123,7 +123,7 @@ impl SwitcherWindowView {
         let refresh = MenuItem::new("Refresh", true, None);
         let separator = PredefinedMenuItem::separator();
         let title = MenuItem::new(env!("CARGO_PKG_NAME"), false, None);
-        let version = MenuItem::new(&concat!("v", env!("CARGO_PKG_VERSION")), false, None);
+        let version = MenuItem::new(concat!("v", env!("CARGO_PKG_VERSION")), false, None);
         let quit = MenuItem::new("Quit", true, None);
         let menu = Menu::with_items(&[
             &move_resize,
