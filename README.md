@@ -37,6 +37,7 @@ Or through Bash (macOS):
 curl -sSf -LO "https://github.com/amrbashir/komorebi-switcher/releases/latest/download/komorebi-switcher.app.zip"
 unzip -o komorebi-switcher.app.zip -d /Applications
 xattr -d com.apple.quarantine /Applications/komorebi-switcher.app
+rm komorebi-switcher.app.zip
 ```
 
 ## Usage
