@@ -105,7 +105,7 @@ jobs:
         run: |
           cd scoop-bucket
           sed -i 's/"version": ".*"/"version": "${{ steps.version.outputs.version }}"/' bucket/komorebi-switcher.json
-          sed -i 's|"url": ".*"|"url": "https://github.com/amrbashir/komorebi-switcher/releases/download/v${{ steps.version.outputs.version }}/komorebi-switcher.exe"|' bucket/komorebi-switcher.json
+          sed -i '/"64bit"/,/"hash"/ s|"url": "https://github.com/amrbashir/komorebi-switcher/releases/download/v[^"]*"|"url": "https://github.com/amrbashir/komorebi-switcher/releases/download/v${{ steps.version.outputs.version }}/komorebi-switcher.exe"|' bucket/komorebi-switcher.json
           sed -i 's/"hash": ".*"/"hash": "${{ steps.scoop-sha256.outputs.hash }}"/' bucket/komorebi-switcher.json
 
       - name: create scoop pull request
@@ -149,6 +149,7 @@ jobs:
           token: ${{ secrets.HOMEBREW_TAP_PAT }}
           path: homebrew-tap
           commit-message: "komorebi-switcher: Update to ${{ steps.version.outputs.version }}"
+          labels: pr-pull
           branch: update-komorebi-switcher-${{ steps.version.outputs.version }}
           title: "komorebi-switcher: Update to ${{ steps.version.outputs.version }}"
           body: |
