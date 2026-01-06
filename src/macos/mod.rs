@@ -112,8 +112,10 @@ impl AppDelegate {
     }
 
     fn dispatch_new_state(state: crate::komorebi::State) {
+        // SAFETY: This is called on the main thread using `Queue::main()`.
         let mtm = MainThreadMarker::new().unwrap();
         let app = NSApp(mtm);
+        // SAFETY: We have set a delegate for the application.
         let delegate = app.delegate().unwrap();
         if let Ok(delegate) = delegate.downcast::<Self>() {
             delegate.update_workspace_buttons(state);
@@ -122,6 +124,7 @@ impl AppDelegate {
 
     fn update_workspace_buttons(&self, state: crate::komorebi::State) {
         let mtm = self.mtm();
+        // SAFETY: We have initialized these ivars in `did_finish_launching`.
         let stack_view = self.ivars().ns_stack_view.get().unwrap();
         let mut workspace_buttons = self.ivars().workspace_buttons.borrow_mut();
 
@@ -132,8 +135,13 @@ impl AppDelegate {
 
         workspace_buttons.clear();
 
+        // Get first monitor (we only support one for now)
+        let Some(monitor) = state.monitors.get(0) else {
+            return;
+        };
+
         // Create new buttons for all workspaces
-        for workspace in &state.monitors[0].workspaces {
+        for workspace in &monitor.workspaces {
             let workspace_button = WorkspaceButton::new(mtm, workspace);
             stack_view.addArrangedSubview(&workspace_button);
 
@@ -141,8 +149,11 @@ impl AppDelegate {
             workspace_buttons.push(workspace_button);
         }
 
+        // SAFETY: We have initialized this ivar in `did_finish_launching`.
+        let ns_status_item = self.ivars().ns_status_item.get().unwrap();
+
         // Update status item button frame to match new stack view size
-        if let Some(btn) = self.ivars().ns_status_item.get().unwrap().button(mtm) {
+        if let Some(btn) = ns_status_item.button(mtm) {
             let fitting_size = stack_view.fittingSize();
             let size = NSSize::new(fitting_size.width, fitting_size.height);
             let frame = NSRect::new(NSPoint::new(0.0, 0.0), size);
@@ -153,6 +164,7 @@ impl AppDelegate {
 }
 
 pub fn run() -> anyhow::Result<()> {
+    // SAFETY: `run` is the main entry point and is called on the main thread.
     let mtm = MainThreadMarker::new().unwrap();
 
     let app = NSApplication::sharedApplication(mtm);

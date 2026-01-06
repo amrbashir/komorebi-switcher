@@ -44,7 +44,6 @@ define_class!(
         #[unsafe(method(mouseEntered:))]
         fn mouse_entered(&self, _event: &NSEvent) {
             self.ivars().is_hovering.set(true);
-            self.setWantsLayer(true);
             let layer = self.layer().unwrap();
             let hover_color = NSColor::colorWithWhite_alpha(1.0, 0.1).CGColor();
             let _: () = unsafe { msg_send![&layer, setBackgroundColor: &*hover_color] };
