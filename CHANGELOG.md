@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-01-06
+
 ### Fixed
 
 - Fixed crash on macOS when launching app on startup and komorebi has not yet fully launched.
