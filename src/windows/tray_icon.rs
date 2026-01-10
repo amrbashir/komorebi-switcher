@@ -24,7 +24,12 @@ impl TrayIcon {
         let move_resize = Submenu::new("Move && Resize", true);
         let refresh = MenuItem::new("Refresh", true, None);
         let separator = PredefinedMenuItem::separator();
+
+        #[cfg(debug_assertions)]
+        let title = MenuItem::new(concat!(env!("CARGO_PKG_NAME"), " (debug)"), false, None);
+        #[cfg(not(debug_assertions))]
         let title = MenuItem::new(env!("CARGO_PKG_NAME"), false, None);
+
         let version = MenuItem::new(concat!("v", env!("CARGO_PKG_VERSION")), false, None);
         let quit = MenuItem::new("Quit", true, None);
 
