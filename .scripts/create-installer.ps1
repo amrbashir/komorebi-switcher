@@ -16,9 +16,6 @@ makensis /V4 "./installer/installer.nsi"
 # Move the installer to the dist directory
 Move-Item -Force "./installer/komorebi-switcher-setup.exe" "./dist/komorebi-switcher-setup.exe"
 
-# Compress the komorebi-switcher.exe to komorebi-switcher.zip
-Compress-Archive -Update "./dist/komorebi-switcher.exe" "./dist/komorebi-switcher.zip"
-
 # Remove artifacts
 Remove-Item -Force "./installer/komorebi-switcher.exe"
 Remove-Item -Force "./installer/icon.ico"

@@ -6,9 +6,9 @@ use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::{WindowAttributes, WindowId};
 
-use crate::app::{App, AppMessage};
-use crate::egui_glue::{EguiView, EguiWindow};
-use crate::window_registry_info::WindowRegistryInfo;
+use crate::windows::app::{App, AppMessage};
+use crate::windows::egui_glue::{EguiView, EguiWindow};
+use crate::windows::window_registry_info::WindowRegistryInfo;
 
 impl App {
     pub fn create_resize_window(

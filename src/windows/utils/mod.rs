@@ -1,5 +1,7 @@
+mod hwnd;
 mod multi_map;
 
+pub use hwnd::HwndWithDrop;
 pub use multi_map::MultiMap;
 use windows::core::*;
 use windows::Win32::Foundation::*;
@@ -56,18 +58,5 @@ impl Iterator for TopLevelWindowsIterator {
         } else {
             None
         }
-    }
-}
-
-pub trait RECTExt {
-    fn contains(&self, other: &RECT) -> bool;
-}
-
-impl RECTExt for RECT {
-    fn contains(&self, other: &RECT) -> bool {
-        self.left <= other.left
-            && self.top <= other.top
-            && self.right >= other.right
-            && self.bottom >= other.bottom
     }
 }

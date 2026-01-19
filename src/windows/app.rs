@@ -4,9 +4,9 @@ use winit::event::{StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::window::WindowId;
 
-use crate::egui_glue::EguiWindow;
-use crate::utils::{MultiMap, RECTExt};
-use crate::window_registry_info::WindowRegistryInfo;
+use crate::windows::egui_glue::EguiWindow;
+use crate::windows::utils::{HwndWithDrop, MultiMap};
+use crate::windows::window_registry_info::WindowRegistryInfo;
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {
@@ -23,14 +23,18 @@ pub enum AppMessage {
     },
     CloseWindow(WindowId),
     NotifyWindowInfoChanges(WindowId, WindowRegistryInfo),
+    RecreateSwitcherWindows,
+    TaskbarRecreated,
 }
 
 pub struct App {
     pub wgpu_instance: wgpu::Instance,
     pub proxy: EventLoopProxy<AppMessage>,
     pub windows: MultiMap<WindowId, Option<String>, EguiWindow>,
-    pub tray_icon: Option<crate::tray_icon::TrayIcon>,
+    pub tray_icon: Option<crate::windows::tray_icon::TrayIcon>,
     pub komorebi_state: crate::komorebi::State,
+    #[allow(unused)]
+    pub message_window: HwndWithDrop,
 }
 
 impl App {
@@ -40,13 +44,23 @@ impl App {
             ..Default::default()
         });
 
-        let tray_icon = crate::tray_icon::TrayIcon::new(proxy.clone()).ok();
+        let tray_icon = crate::windows::tray_icon::TrayIcon::new(proxy.clone()).ok();
 
         let komorebi_state = crate::komorebi::read_state().unwrap_or_default();
 
+        let message_window = unsafe { crate::windows::message_window::create(proxy.clone())? };
+        let message_window = HwndWithDrop(message_window);
+
+        // Start listening for komorebi state changes
         {
             let proxy = proxy.clone();
-            std::thread::spawn(move || crate::komorebi::listen_for_state(proxy));
+            std::thread::spawn(move || {
+                crate::komorebi::listen_for_state(move |new_state| {
+                    if let Err(e) = proxy.send_event(AppMessage::UpdateKomorebiState(new_state)) {
+                        tracing::error!("Failed to send komorebi state update: {e}");
+                    }
+                })
+            });
         }
 
         Ok(Self {
@@ -55,11 +69,12 @@ impl App {
             proxy,
             tray_icon,
             komorebi_state,
+            message_window,
         })
     }
 
     fn create_switchers(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
-        let taskbars = crate::taskbar::all();
+        let taskbars = crate::windows::taskbar::all();
 
         tracing::debug!("Found {} taskbars: {taskbars:?}", taskbars.len());
 
@@ -70,7 +85,7 @@ impl App {
                 continue;
             }
 
-            let Some(taskbar) = taskbars.iter().find(|tb| monitor.rect.contains(&tb.rect)) else {
+            let Some(taskbar) = taskbars.iter().find(|tb| monitor.rect.contains(tb.rect)) else {
                 tracing::warn!(
                     "Failed to find taskbar for monitor: {}-{} {:?}",
                     monitor.name,
@@ -96,24 +111,41 @@ impl App {
         Ok(())
     }
 
+    fn switcher_menu_ids(&self) -> Vec<String> {
+        self.komorebi_state
+            .monitors
+            .iter()
+            .filter(|m| self.windows.contains_key_alt(&Some(m.id.clone())))
+            .map(|m| format!("{}-{}", m.name, m.id))
+            .collect::<Vec<_>>()
+    }
+
+    fn recreate_tray_menu_items(&mut self) -> anyhow::Result<()> {
+        let switchers_ids = self.switcher_menu_ids();
+
+        if let Some(tray) = &mut self.tray_icon {
+            tray.destroy_items_for_switchers()?;
+            tray.create_items_for_switchers(switchers_ids)?;
+        }
+
+        Ok(())
+    }
+
     fn handle_app_message(
         &mut self,
         event_loop: &ActiveEventLoop,
-        event: &AppMessage,
+        message: &AppMessage,
     ) -> anyhow::Result<()> {
-        match event {
+        match message {
             AppMessage::CreateResizeWindow {
                 host,
                 info,
                 subkey,
                 window_id,
-            } => self.create_resize_window(
-                event_loop,
-                *window_id,
-                HWND(*host as _),
-                *info,
-                subkey.clone(),
-            )?,
+            } => {
+                let host = HWND(*host as _);
+                self.create_resize_window(event_loop, *window_id, host, *info, subkey.clone())?
+            }
 
             AppMessage::CloseWindow(window_id) => {
                 self.windows.remove(window_id);
@@ -141,19 +173,21 @@ impl App {
                     monitor
                 });
 
-                // Update tray icon
-                if let Some(tray) = &mut self.tray_icon {
-                    tray.destroy_items_for_switchers()?;
+                // Update tray icon menu items
+                self.recreate_tray_menu_items()?;
+            }
 
-                    let switchers_ids = self
-                        .komorebi_state
-                        .monitors
-                        .iter()
-                        .filter(|m| self.windows.contains_key_alt(&Some(m.id.clone())))
-                        .map(|m| format!("{}-{}", m.name, m.id))
-                        .collect::<Vec<_>>();
-                    tray.create_items_for_switchers(switchers_ids)?;
-                }
+            AppMessage::RecreateSwitcherWindows | AppMessage::TaskbarRecreated => {
+                tracing::info!("Received {message:?}, closing and recreating all switchers");
+
+                // Close all existing switcher windows
+                self.windows.clear();
+
+                // Recreate switchers with new taskbar windows
+                self.create_switchers(event_loop)?;
+
+                // Update tray icon menu items
+                self.recreate_tray_menu_items()?;
             }
 
             _ => {}
@@ -166,16 +200,14 @@ impl App {
 impl ApplicationHandler<AppMessage> for App {
     fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
         if cause == StartCause::Init {
+            // On Init, create switcher windows for all monitors
             if let Err(e) = self.create_switchers(event_loop) {
                 tracing::error!("Error while creating switchers: {e}");
             };
 
+            // Then, create tray icon menu items for switchers
+            let switchers_ids = self.switcher_menu_ids();
             if let Some(tray) = &mut self.tray_icon {
-                let switchers_ids = self
-                    .windows
-                    .iter()
-                    .filter_map(|(_, (key, _))| key.clone())
-                    .collect::<Vec<_>>();
                 if let Err(e) = tray.create_items_for_switchers(switchers_ids) {
                     tracing::error!("Error while creating tray items for switchers: {e}");
                 }

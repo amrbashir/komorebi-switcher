@@ -1,7 +1,7 @@
 use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 
-use crate::app::AppMessage;
+use crate::windows::app::AppMessage;
 
 pub trait EguiView: std::any::Any {
     fn handle_app_message(

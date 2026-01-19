@@ -2,6 +2,40 @@
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-01-06
+
+### Fixed
+
+- Fixed crash on macOS when launching app on startup and komorebi has not yet fully launched.
+
+## [0.9.1] - 2026-01-04
+
+### Fixed
+
+- Fixed app icon on macOS
+
+## [0.9.0] - 2026-01-03
+
+### Added
+
+- Added support for macOS
+- Added app name and version in context menu
+
+### Changed
+
+- Renamed `Recreate Switcher` menu item to `Refresh`
+
+## [0.8.0] - 2025-12-24
+
+### Added
+
+- Added `Recreate Switcher` menu item in tray icon to manually recreate switcher windows.
+
+### Fixed
+
+- Fixed switcher windows not being recreated when Windows Explorer restarts.
+- Fixed "Move & Resize" tray menu item not triggering resize mode.
+
 ## [0.7.2] - 2025-08-24
 
 ### Fixed

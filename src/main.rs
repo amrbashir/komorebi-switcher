@@ -1,44 +1,21 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::fmt::Display;
-
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
-use winit::event_loop::EventLoop;
 
-use crate::app::{App, AppMessage};
-
-mod app;
-mod egui_glue;
 mod komorebi;
-mod taskbar;
-mod tray_icon;
+#[cfg(target_os = "macos")]
+mod macos;
 mod utils;
-mod widgets;
-mod window_registry_info;
+#[cfg(target_os = "windows")]
 mod windows;
 
-fn error_dialog<T: Display>(error: T) {
-    rfd::MessageDialog::new()
-        .set_title("komorebi-switcher")
-        .set_description(error.to_string())
-        .set_level(rfd::MessageLevel::Error)
-        .set_buttons(rfd::MessageButtons::Ok)
-        .show();
-}
-
 fn run() -> anyhow::Result<()> {
-    let evl = EventLoop::<AppMessage>::with_user_event().build()?;
+    #[cfg(target_os = "windows")]
+    windows::run()?;
 
-    let proxy = evl.create_proxy();
-    muda::MenuEvent::set_event_handler(Some(move |e| {
-        if let Err(e) = proxy.send_event(AppMessage::MenuEvent(e)) {
-            tracing::error!("Failed to send `AppMessage::MenuEvent`: {e}")
-        }
-    }));
-
-    let mut app = App::new(evl.create_proxy())?;
-    evl.run_app(&mut app)?;
+    #[cfg(target_os = "macos")]
+    macos::run()?;
 
     Ok(())
 }
@@ -106,12 +83,12 @@ fn main() -> anyhow::Result<()> {
     tracing::debug!("Initialized Logger");
 
     std::panic::set_hook(Box::new(|info| {
-        error_dialog(info);
+        utils::error_dialog(info);
         tracing::error!("{info}");
     }));
 
     if let Err(e) = run() {
-        error_dialog(&e);
+        utils::error_dialog(&e);
         tracing::error!("{e}");
         std::process::exit(1);
     }

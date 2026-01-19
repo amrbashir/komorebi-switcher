@@ -18,8 +18,10 @@ permissions:
   pull-requests: write
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -27,28 +29,54 @@ jobs:
       - run: cargo build
 
       - uses: actions/upload-artifact@v4
-        id: upload-artifact
+        id: upload
         with:
-          name: komorebi-switcher-pr-${{ github.event.number }}-${{ github.event.pull_request.head.sha }}.zip
+          name: komorebi-switcher-windows-pr-${{ github.event.number }}-${{ github.event.pull_request.head.sha }}
           path: target/debug/komorebi-switcher.exe
           overwrite: true
 
+  build-macos:
+    runs-on: macos-latest
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: cargo build
+
+      - uses: actions/upload-artifact@v4
+        id: upload
+        with:
+          name: komorebi-switcher-macos-pr-${{ github.event.number }}-${{ github.event.pull_request.head.sha }}
+          path: target/debug/komorebi-switcher
+          overwrite: true
+
+  post-comment:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
       - uses: actions/github-script@v7
         if: github.event_name == 'pull_request'
         with:
             script: |
-              // Get the artifact ID from the upload step
-              const artifactId = '${{ steps.upload-artifact.outputs.artifact-id }}';
-              
               // Build comment components
               const commitSha = '${{ github.event.pull_request.head.sha }}';
               const prNumber = '${{ github.event.number }}';
               const repository = '${{ github.repository }}';
               const runId = '${{ github.run_id }}';
               
-              const artifactName = `komorebi-switcher-pr-${prNumber}-${commitSha}.zip`;
-              const downloadUrl = `https://github.com/${repository}/actions/runs/${runId}/artifacts/${artifactId}`;
-              const commentBody = `🎉 Build successful! Download the artifact: [${artifactName}](${downloadUrl})`;
+              const windowsArtifactId = '${{ needs.build-windows.outputs.artifact-id }}';
+              const windowsArtifactName = `komorebi-switcher-windows-pr-${prNumber}-${commitSha}.zip`;
+              const windowsdownloadUrl = `https://github.com/${repository}/actions/runs/${runId}/artifacts/${windowsArtifactId}`;
+              const windowsLink = `- Windows: [${windowsArtifactName}](${windowsdownloadUrl})`;
+
+              const macosArtifactId = '${{ needs.build-macos.outputs.artifact-id }}';
+              const macosArtifactName = `komorebi-switcher-macos-pr-${prNumber}-${commitSha}.zip`;
+              const macosdownloadUrl = `https://github.com/${repository}/actions/runs/${runId}/artifacts/${macosArtifactId}`;
+              const macosLink = `- macOS: [${macosArtifactName}](${macosdownloadUrl})`;
+
+              const commentBody = "🎉 Build successful!" + "\n" + windowsLink + "\n" + macosLink;
               
               // Check for existing comment from this bot
               const comments = await github.rest.issues.listComments({

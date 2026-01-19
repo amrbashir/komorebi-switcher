@@ -1,7 +1,7 @@
 use std::num::NonZero;
 use std::sync::Arc;
 
-use muda::{ContextMenu, Menu, MenuItem};
+use muda::{ContextMenu, Menu, MenuItem, PredefinedMenuItem};
 use raw_window_handle::{RawWindowHandle, Win32WindowHandle};
 use windows::Win32::Foundation::*;
 use windows::Win32::UI::HiDpi::GetDpiForWindow;
@@ -12,12 +12,11 @@ use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::{Window, WindowAttributes};
 
-use crate::app::{App, AppMessage};
-use crate::egui_glue::{EguiView, EguiWindow};
-use crate::taskbar::Taskbar;
-use crate::widgets::WorkspaceButton;
-use crate::widgets::LayoutButton;
-use crate::window_registry_info::WindowRegistryInfo;
+use crate::windows::app::{App, AppMessage};
+use crate::windows::egui_glue::{EguiView, EguiWindow};
+use crate::windows::taskbar::Taskbar;
+use crate::windows::widgets::{LayoutButton, WorkspaceButton};
+use crate::windows::window_registry_info::WindowRegistryInfo;
 
 mod host;
 
@@ -72,8 +71,9 @@ impl App {
 
 struct ContextMenuState {
     menu: muda::Menu,
-    quit: muda::MenuItem,
     move_resize: muda::MenuItem,
+    refresh: muda::MenuItem,
+    quit: muda::MenuItem,
 }
 
 pub struct SwitcherWindowView {
@@ -119,13 +119,32 @@ impl SwitcherWindowView {
     }
 
     fn create_context_menu() -> anyhow::Result<ContextMenuState> {
-        let quit = MenuItem::new("Quit", true, None);
         let move_resize = MenuItem::new("Move && Resize", true, None);
-        let menu = Menu::with_items(&[&move_resize, &quit])?;
+        let refresh = MenuItem::new("Refresh", true, None);
+        let separator = PredefinedMenuItem::separator();
+
+        #[cfg(debug_assertions)]
+        let title = MenuItem::new(concat!(env!("CARGO_PKG_NAME"), " (debug)"), false, None);
+        #[cfg(not(debug_assertions))]
+        let title = MenuItem::new(env!("CARGO_PKG_NAME"), false, None);
+
+        let version = MenuItem::new(concat!("v", env!("CARGO_PKG_VERSION")), false, None);
+        let quit = MenuItem::new("Quit", true, None);
+        let menu = Menu::with_items(&[
+            &move_resize,
+            &refresh,
+            &separator,
+            &title,
+            &version,
+            &separator,
+            &quit,
+        ])?;
+
         Ok(ContextMenuState {
             menu,
-            quit,
             move_resize,
+            refresh,
+            quit,
         })
     }
 
@@ -204,7 +223,7 @@ impl SwitcherWindowView {
         Ok(())
     }
 
-    fn start_host_dragging(&self) -> anyhow::Result<()> {
+    fn show_move_resize_window(&self) -> anyhow::Result<()> {
         let host = self.host.0 as isize;
         let info = self.window_info;
         let message = AppMessage::CreateResizeWindow {
@@ -289,7 +308,8 @@ impl SwitcherWindowView {
                     }
                 }
 
-                let layout_btn = LayoutButton::new(crate::komorebi::read_layout().unwrap_or("No Layout".into()))
+                let layout_btn =
+                    LayoutButton::new(crate::komorebi::read_layout().unwrap_or("No Layout".into()))
                         .dark_mode(Some(self.is_system_dark_mode()))
                         .line_focused_color_opt(self.line_focused_color())
                         .text_color_opt(self.forgreound_color)
@@ -304,15 +324,19 @@ impl SwitcherWindowView {
                 // handle mouse wheel for layout button
                 ui.input(|i| {
                     for e in &i.events {
-                        if let egui::Event::MouseWheel{delta, ..} = e {
+                        if let egui::Event::MouseWheel { delta, .. } = e {
                             // y axis for mouse wheel (inverted for some reason)
                             let delta_y = -delta.y as isize;
 
                             if response.contains_pointer() {
                                 if delta_y > 0 {
-                                    crate::komorebi::cycle_layout(crate::komorebi::KCycleDirection::Next);
+                                    crate::komorebi::cycle_layout(
+                                        crate::komorebi::KCycleDirection::Next,
+                                    );
                                 } else {
-                                    crate::komorebi::cycle_layout(crate::komorebi::KCycleDirection::Previous);
+                                    crate::komorebi::cycle_layout(
+                                        crate::komorebi::KCycleDirection::Previous,
+                                    );
                                 }
                             }
                         }
@@ -354,17 +378,19 @@ impl EguiView for SwitcherWindowView {
             }
 
             AppMessage::MenuEvent(e) if e.id() == self.context_menu.move_resize.id() => {
-                self.start_host_dragging()?
+                self.show_move_resize_window()?
+            }
+
+            AppMessage::MenuEvent(e) if e.id() == self.context_menu.refresh.id() => {
+                self.proxy.send_event(AppMessage::RecreateSwitcherWindows)?
             }
 
             AppMessage::MenuEvent(e) if e.id() == self.context_menu.quit.id() => {
                 self.close_host()?
             }
 
-            AppMessage::StartMoveResize(serial_number_id)
-                if serial_number_id == &self.monitor_state.id =>
-            {
-                self.start_host_dragging()?
+            AppMessage::StartMoveResize(menu_id) if menu_id.ends_with(&self.monitor_state.id) => {
+                self.show_move_resize_window()?
             }
 
             AppMessage::SystemSettingsChanged => self.update_system_colors()?,
