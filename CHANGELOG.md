@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added 
+
+- Add button to show active workspace layout and click to cycle through available layouts.
+
 ## [0.9.2] - 2026-01-06
 
 ### Fixed
