@@ -12,6 +12,7 @@ use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::{Window, WindowAttributes};
 
+use crate::komorebi::CycleDirection;
 use crate::windows::app::{App, AppMessage};
 use crate::windows::egui_glue::{EguiView, EguiWindow};
 use crate::windows::taskbar::Taskbar;
@@ -318,7 +319,7 @@ impl SwitcherWindowView {
                 let response = ui.add(layout_btn);
 
                 if response.clicked() {
-                    crate::komorebi::cycle_layout(crate::komorebi::KCycleDirection::Next);
+                    crate::komorebi::cycle_layout(CycleDirection::Next);
                 }
 
                 // handle mouse wheel for layout button
@@ -330,13 +331,9 @@ impl SwitcherWindowView {
 
                             if response.contains_pointer() {
                                 if delta_y > 0 {
-                                    crate::komorebi::cycle_layout(
-                                        crate::komorebi::KCycleDirection::Next,
-                                    );
+                                    crate::komorebi::cycle_layout(CycleDirection::Next);
                                 } else {
-                                    crate::komorebi::cycle_layout(
-                                        crate::komorebi::KCycleDirection::Previous,
-                                    );
+                                    crate::komorebi::cycle_layout(CycleDirection::Previous);
                                 }
                             }
                         }

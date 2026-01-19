@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use client::*;
 
-pub use crate::komorebi::client::KCycleDirection;
+pub use crate::komorebi::client::KCycleDirection as CycleDirection;
 
 mod client;
 
