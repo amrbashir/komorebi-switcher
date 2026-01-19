@@ -46,6 +46,7 @@ pub struct Workspace {
     pub index: usize,
     pub focused: bool,
     pub is_empty: bool,
+    pub layout: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -59,6 +60,10 @@ pub struct Monitor {
 }
 
 impl Monitor {
+    pub fn focused_workspace(&self) -> Option<&Workspace> {
+        self.workspaces.iter().find(|ws| ws.focused)
+    }
+
     fn from(monitor: KMonitor, index: usize) -> Self {
         let workspaces = monitor
             .workspaces
@@ -73,6 +78,7 @@ impl Monitor {
                     .name
                     .clone()
                     .unwrap_or_else(|| (idx + 1).to_string()),
+                layout: workspace.layout.default.clone(),
             })
             .collect();
 
@@ -127,11 +133,6 @@ pub fn read_state() -> anyhow::Result<State> {
     Ok(state.into())
 }
 
-pub fn read_layout() -> anyhow::Result<String> {
-    let response = client::send_query(KSocketMessage::Query(KStateQuery::FocusedWorkspaceLayout))?;
-    Ok(response)
-}
-
 pub fn change_workspace(monitor_idx: usize, workspace_idx: usize) {
     tracing::info!("Changing komorebi workspace to {workspace_idx} on monitor {monitor_idx}");
 
@@ -141,7 +142,7 @@ pub fn change_workspace(monitor_idx: usize, workspace_idx: usize) {
     }
 }
 
-pub fn cycle_layout(direction: KCycleDirection) {
+pub fn cycle_layout(direction: CycleDirection) {
     tracing::info!("Changing to {direction} komorebi layout");
 
     let change_msg = KSocketMessage::CycleLayout(direction);

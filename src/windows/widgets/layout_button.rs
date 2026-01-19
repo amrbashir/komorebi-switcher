@@ -1,18 +1,14 @@
-pub struct LayoutButton {
-    text: String,
+pub struct LayoutButton<'a> {
+    text: &'a str,
     text_color: Option<egui::Color32>,
-    line_on_top: bool,
-    line_focused_color: Option<egui::Color32>,
     dark_mode: Option<bool>,
 }
 
-impl LayoutButton {
-    pub fn new(text: String) -> Self {
+impl<'a> LayoutButton<'a> {
+    pub fn new(text: &'a str) -> Self {
         Self {
             text,
             text_color: None,
-            line_on_top: false,
-            line_focused_color: None,
             dark_mode: None,
         }
     }
@@ -31,24 +27,9 @@ impl LayoutButton {
         self.text_color = color;
         self
     }
-
-    pub fn line_on_top(mut self, line_on_top: bool) -> Self {
-        self.line_on_top = line_on_top;
-        self
-    }
-
-    // pub fn line_focused_color(mut self, color: egui::Color32) -> Self {
-    //     self.line_focused_color.replace(color);
-    //     self
-    // }
-
-    pub fn line_focused_color_opt(mut self, color: Option<egui::Color32>) -> Self {
-        self.line_focused_color = color;
-        self
-    }
 }
 
-impl egui::Widget for LayoutButton {
+impl<'a> egui::Widget for LayoutButton<'a> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         const RADIUS: f32 = 4.0;
         const MIN_SIZE: egui::Vec2 = egui::vec2(28.0, 28.0);
@@ -63,9 +44,10 @@ impl egui::Widget for LayoutButton {
             egui::Color32::BLACK
         });
 
+        let text = self.text.to_string();
         let text_galley = ui
             .painter()
-            .layout_no_wrap(self.text.clone(), font_id.clone(), text_color);
+            .layout_no_wrap(text, font_id.clone(), text_color);
 
         let size = MIN_SIZE.max(text_galley.rect.size() + TEXT_PADDING);
 

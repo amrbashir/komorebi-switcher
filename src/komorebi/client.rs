@@ -28,12 +28,19 @@ impl<T> MaybeRingOrVec<T> {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct KLayout {
+    #[serde(rename = "Default")]
+    pub default: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct KWorkspace {
     pub name: Option<String>,
     pub containers: Ring<serde_json::Value>,
     pub maximized_window: Option<serde_json::Value>,
     pub monocle_container: Option<serde_json::Value>,
     pub floating_windows: MaybeRingOrVec<serde_json::Value>,
+    pub layout: KLayout,
 }
 
 impl KWorkspace {

@@ -294,6 +294,7 @@ impl SwitcherWindowView {
             ui.scope(|ui| {
                 ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
 
+                // show workspace buttons
                 for workspace in self.monitor_state.workspaces.iter() {
                     let btn = WorkspaceButton::new(workspace)
                         .dark_mode(Some(self.is_system_dark_mode()))
@@ -309,36 +310,18 @@ impl SwitcherWindowView {
                     }
                 }
 
-                let layout_btn =
-                    LayoutButton::new(crate::komorebi::read_layout().unwrap_or("No Layout".into()))
+                // show layout button for focused workspace
+                if let Some(focused_ws) = self.monitor_state.focused_workspace() {
+                    ui.add(egui::Label::new("|"));
+
+                    let btn = LayoutButton::new(&focused_ws.layout)
                         .dark_mode(Some(self.is_system_dark_mode()))
-                        .line_focused_color_opt(self.line_focused_color())
-                        .text_color_opt(self.forgreound_color)
-                        .line_on_top(self.is_taskbar_on_top());
+                        .text_color_opt(self.forgreound_color);
 
-                let response = ui.add(layout_btn);
-
-                if response.clicked() {
-                    crate::komorebi::cycle_layout(CycleDirection::Next);
-                }
-
-                // handle mouse wheel for layout button
-                ui.input(|i| {
-                    for e in &i.events {
-                        if let egui::Event::MouseWheel { delta, .. } = e {
-                            // y axis for mouse wheel (inverted for some reason)
-                            let delta_y = -delta.y as isize;
-
-                            if response.contains_pointer() {
-                                if delta_y > 0 {
-                                    crate::komorebi::cycle_layout(CycleDirection::Next);
-                                } else {
-                                    crate::komorebi::cycle_layout(CycleDirection::Previous);
-                                }
-                            }
-                        }
+                    if ui.add(btn).clicked() {
+                        crate::komorebi::cycle_layout(CycleDirection::Next);
                     }
-                });
+                }
             })
         })
         .response
