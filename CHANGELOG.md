@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Active workspace indicator will no longer appear on top of the switcher button and will always be at the bottom of it.
+
 ## [0.9.2] - 2026-01-06
 
 ### Fixed

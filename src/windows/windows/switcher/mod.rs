@@ -177,11 +177,11 @@ impl SwitcherWindowView {
         Ok(())
     }
 
-    fn host_window_rect(&self) -> anyhow::Result<RECT> {
-        let mut rect = RECT::default();
-        unsafe { GetWindowRect(self.host, &mut rect) }?;
-        Ok(rect)
-    }
+    // fn host_window_rect(&self) -> anyhow::Result<RECT> {
+    //     let mut rect = RECT::default();
+    //     unsafe { GetWindowRect(self.host, &mut rect) }?;
+    //     Ok(rect)
+    // }
 
     fn taskbar_height(&self) -> anyhow::Result<i32> {
         let mut rect = RECT::default();
@@ -257,17 +257,6 @@ impl SwitcherWindowView {
         }
     }
 
-    fn is_taskbar_on_top(&self) -> bool {
-        // TODO: find a more peroformant way to check this
-        self.host_window_rect()
-            .map(|r| {
-                let current_monitor = self.window.current_monitor();
-                let y = current_monitor.map(|m| m.position().y).unwrap_or(0);
-                r.top <= y
-            })
-            .unwrap_or(false)
-    }
-
     fn is_system_dark_mode(&self) -> bool {
         // FIXME: use egui internal dark mode detection
         self.forgreound_color
@@ -297,8 +286,7 @@ impl SwitcherWindowView {
                     let btn = WorkspaceButton::new(workspace)
                         .dark_mode(Some(self.is_system_dark_mode()))
                         .line_focused_color_opt(self.line_focused_color())
-                        .text_color_opt(self.forgreound_color)
-                        .line_on_top(self.is_taskbar_on_top());
+                        .text_color_opt(self.forgreound_color);
 
                     if ui.add(btn).clicked() {
                         crate::komorebi::change_workspace(
