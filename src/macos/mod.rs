@@ -140,7 +140,7 @@ impl AppDelegate {
         views.clear();
 
         // Get first monitor (we only support one for now)
-        let Some(monitor) = state.monitors.get(0) else {
+        let Some(monitor) = state.monitors.first() else {
             return;
         };
 
