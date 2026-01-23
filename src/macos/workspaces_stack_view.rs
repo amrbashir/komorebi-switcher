@@ -1,6 +1,6 @@
 use objc2::rc::Retained;
 use objc2::{define_class, msg_send, sel, MainThreadOnly};
-use objc2_app_kit::{NSEvent, NSMenu, NSMenuItem, NSStackView};
+use objc2_app_kit::{NSEvent, NSLayoutAttribute, NSMenu, NSMenuItem, NSStackView};
 use objc2_foundation::{MainThreadMarker, NSString};
 
 define_class!(
@@ -65,6 +65,10 @@ impl WorkspacesStackView {
     pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
         let this = Self::alloc(mtm);
         // SAFETY: The signature of `NSStackView`'s `init` method is correct.
-        unsafe { msg_send![this, init] }
+        let this: Retained<Self> = unsafe { msg_send![this, init] };
+
+        this.setAlignment(NSLayoutAttribute::CenterY);
+
+        this
     }
 }
