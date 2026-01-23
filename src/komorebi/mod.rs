@@ -3,6 +3,8 @@ use std::time::Duration;
 
 use client::*;
 
+pub use crate::komorebi::client::KCycleDirection as CycleDirection;
+
 mod client;
 
 #[derive(Debug, Clone, Default, Copy)]
@@ -44,6 +46,7 @@ pub struct Workspace {
     pub index: usize,
     pub focused: bool,
     pub is_empty: bool,
+    pub layout: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -57,6 +60,10 @@ pub struct Monitor {
 }
 
 impl Monitor {
+    pub fn focused_workspace(&self) -> Option<&Workspace> {
+        self.workspaces.iter().find(|ws| ws.focused)
+    }
+
     fn from(monitor: KMonitor, index: usize) -> Self {
         let workspaces = monitor
             .workspaces
@@ -71,6 +78,7 @@ impl Monitor {
                     .name
                     .clone()
                     .unwrap_or_else(|| (idx + 1).to_string()),
+                layout: workspace.layout.default.clone(),
             })
             .collect();
 
@@ -131,6 +139,15 @@ pub fn change_workspace(monitor_idx: usize, workspace_idx: usize) {
     let change_msg = KSocketMessage::FocusMonitorWorkspaceNumber(monitor_idx, workspace_idx);
     if let Err(e) = client::send_message(&change_msg) {
         tracing::error!("Failed to change workspace: {e}")
+    }
+}
+
+pub fn cycle_layout(direction: CycleDirection) {
+    tracing::info!("Changing to {direction} komorebi layout");
+
+    let change_msg = KSocketMessage::CycleLayout(direction);
+    if let Err(e) = client::send_message(&change_msg) {
+        tracing::error!("Failed to change layout: {e}")
     }
 }
 

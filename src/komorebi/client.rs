@@ -28,12 +28,19 @@ impl<T> MaybeRingOrVec<T> {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct KLayout {
+    #[serde(rename = "Default")]
+    pub default: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct KWorkspace {
     pub name: Option<String>,
     pub containers: Ring<serde_json::Value>,
     pub maximized_window: Option<serde_json::Value>,
     pub monocle_container: Option<serde_json::Value>,
     pub floating_windows: MaybeRingOrVec<serde_json::Value>,
+    pub layout: KLayout,
 }
 
 impl KWorkspace {
@@ -84,11 +91,31 @@ pub struct KState {
 }
 
 #[derive(Debug, strum::Display, Serialize, Deserialize)]
+pub enum KStateQuery {
+    FocusedMonitorIndex,
+    FocusedWorkspaceIndex,
+    FocusedContainerIndex,
+    FocusedWindowIndex,
+    FocusedWorkspaceName,
+    FocusedWorkspaceLayout, // We can use this to get the layout
+    FocusedContainerKind,
+    Version,
+}
+
+#[derive(Debug, strum::Display, Serialize, Deserialize)]
+pub enum KCycleDirection {
+    Previous,
+    Next,
+}
+
+#[derive(Debug, strum::Display, Serialize, Deserialize)]
 #[serde(tag = "type", content = "content")]
 pub enum KSocketMessage {
     State,
     AddSubscriberSocket(String),
     FocusMonitorWorkspaceNumber(usize, usize),
+    CycleLayout(KCycleDirection),
+    Query(KStateQuery),
 }
 
 #[derive(Debug, strum::Display, Serialize, Deserialize)]
@@ -101,6 +128,7 @@ pub enum KSocketEvent {
     FocusWorkspaceNumbers,
     CycleFocusMonitor,
     CycleFocusWorkspace,
+    CycleLayout,
     ReloadConfiguration,
     ReplaceConfiguration,
     CompleteConfiguration,

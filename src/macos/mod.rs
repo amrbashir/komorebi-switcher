@@ -6,15 +6,19 @@ use objc2::runtime::ProtocolObject;
 use objc2::{define_class, msg_send, DefinedClass, MainThreadOnly};
 use objc2_app_kit::{
     NSApp, NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSStatusBar,
-    NSStatusItem, NSUserInterfaceLayoutOrientation, NSVariableStatusItemLength,
+    NSStatusItem, NSTextAlignment, NSTextField, NSUserInterfaceLayoutOrientation,
+    NSVariableStatusItemLength, NSView,
 };
 use objc2_foundation::{
-    MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect, NSSize,
+    ns_string, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect,
+    NSSize,
 };
 
 use self::workspace_button::WorkspaceButton;
 use self::workspaces_stack_view::WorkspacesStackView;
+use crate::macos::layout_button::LayoutButton;
 
+mod layout_button;
 mod workspace_button;
 mod workspaces_stack_view;
 
@@ -22,7 +26,7 @@ mod workspaces_stack_view;
 pub struct AppDelegateIvars {
     ns_status_item: OnceCell<Retained<NSStatusItem>>,
     ns_stack_view: OnceCell<Retained<WorkspacesStackView>>,
-    workspace_buttons: RefCell<Vec<Retained<WorkspaceButton>>>,
+    buttons: RefCell<Vec<Retained<NSView>>>,
 }
 
 impl Default for AppDelegateIvars {
@@ -30,7 +34,7 @@ impl Default for AppDelegateIvars {
         Self {
             ns_status_item: OnceCell::new(),
             ns_stack_view: OnceCell::new(),
-            workspace_buttons: RefCell::new(Vec::new()),
+            buttons: RefCell::new(Vec::new()),
         }
     }
 }
@@ -126,17 +130,17 @@ impl AppDelegate {
         let mtm = self.mtm();
         // SAFETY: We have initialized these ivars in `did_finish_launching`.
         let stack_view = self.ivars().ns_stack_view.get().unwrap();
-        let mut workspace_buttons = self.ivars().workspace_buttons.borrow_mut();
+        let mut views = self.ivars().buttons.borrow_mut();
 
         // Remove all existing buttons from stack view
-        for button in workspace_buttons.iter() {
+        for button in views.iter() {
             button.removeFromSuperview();
         }
 
-        workspace_buttons.clear();
+        views.clear();
 
         // Get first monitor (we only support one for now)
-        let Some(monitor) = state.monitors.get(0) else {
+        let Some(monitor) = state.monitors.first() else {
             return;
         };
 
@@ -146,7 +150,23 @@ impl AppDelegate {
             stack_view.addArrangedSubview(&workspace_button);
 
             // Store button
-            workspace_buttons.push(workspace_button);
+            views.push(workspace_button.downcast().unwrap());
+        }
+
+        // show layout button for focused workspace
+        if let Some(focused_ws) = monitor.focused_workspace() {
+            let separator = NSTextField::labelWithString(ns_string!("|"), mtm);
+            separator.setAlignment(NSTextAlignment::Center);
+            stack_view.addArrangedSubview(&separator);
+
+            // Store separator
+            views.push(separator.downcast().unwrap());
+
+            let layout_button = LayoutButton::new(mtm, focused_ws);
+            stack_view.addArrangedSubview(&layout_button);
+
+            // Store button
+            views.push(layout_button.downcast().unwrap());
         }
 
         // SAFETY: We have initialized this ivar in `did_finish_launching`.
@@ -155,7 +175,7 @@ impl AppDelegate {
         // Update status item button frame to match new stack view size
         if let Some(btn) = ns_status_item.button(mtm) {
             let fitting_size = stack_view.fittingSize();
-            let size = NSSize::new(fitting_size.width, fitting_size.height);
+            let size = NSSize::new(fitting_size.width, WorkspaceButton::HEIGHT);
             let frame = NSRect::new(NSPoint::new(0.0, 0.0), size);
             stack_view.setFrame(frame);
             btn.setFrame(frame);

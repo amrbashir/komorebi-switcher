@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added 
+
+- Add button to show active workspace layout and click to cycle through available layouts.
+
 ### Changed
 
 - Active workspace indicator will no longer appear on top of the switcher button and will always be at the bottom of it.

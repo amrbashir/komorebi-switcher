@@ -12,10 +12,11 @@ use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::{Window, WindowAttributes};
 
+use crate::komorebi::CycleDirection;
 use crate::windows::app::{App, AppMessage};
 use crate::windows::egui_glue::{EguiView, EguiWindow};
 use crate::windows::taskbar::Taskbar;
-use crate::windows::widgets::WorkspaceButton;
+use crate::windows::widgets::{LayoutButton, WorkspaceButton};
 use crate::windows::window_registry_info::WindowRegistryInfo;
 
 mod host;
@@ -282,6 +283,7 @@ impl SwitcherWindowView {
             ui.scope(|ui| {
                 ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
 
+                // show workspace buttons
                 for workspace in self.monitor_state.workspaces.iter() {
                     let btn = WorkspaceButton::new(workspace)
                         .dark_mode(Some(self.is_system_dark_mode()))
@@ -293,6 +295,19 @@ impl SwitcherWindowView {
                             self.monitor_state.index,
                             workspace.index,
                         );
+                    }
+                }
+
+                // show layout button for focused workspace
+                if let Some(focused_ws) = self.monitor_state.focused_workspace() {
+                    ui.add(egui::Label::new("|"));
+
+                    let btn = LayoutButton::new(&focused_ws.layout)
+                        .dark_mode(Some(self.is_system_dark_mode()))
+                        .text_color_opt(self.forgreound_color);
+
+                    if ui.add(btn).clicked() {
+                        crate::komorebi::cycle_layout(CycleDirection::Next);
                     }
                 }
             })
