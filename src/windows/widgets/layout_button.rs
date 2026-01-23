@@ -87,7 +87,7 @@ impl<'a> egui::Widget for LayoutButton<'a> {
         painter.text(
             rect.center(),
             egui::Align2::CENTER_CENTER,
-            &self.text,
+            self.text,
             font_id,
             text_color,
         );
