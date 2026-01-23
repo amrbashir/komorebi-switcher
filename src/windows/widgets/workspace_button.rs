@@ -3,7 +3,6 @@ use crate::komorebi::Workspace;
 pub struct WorkspaceButton<'a> {
     workspace: &'a Workspace,
     text_color: Option<egui::Color32>,
-    line_on_top: bool,
     line_focused_color: Option<egui::Color32>,
     dark_mode: Option<bool>,
 }
@@ -13,7 +12,6 @@ impl<'a> WorkspaceButton<'a> {
         Self {
             workspace,
             text_color: None,
-            line_on_top: false,
             line_focused_color: None,
             dark_mode: None,
         }
@@ -31,11 +29,6 @@ impl<'a> WorkspaceButton<'a> {
 
     pub fn text_color_opt(mut self, color: Option<egui::Color32>) -> Self {
         self.text_color = color;
-        self
-    }
-
-    pub fn line_on_top(mut self, line_on_top: bool) -> Self {
-        self.line_on_top = line_on_top;
         self
     }
 
@@ -132,13 +125,10 @@ impl egui::Widget for WorkspaceButton<'_> {
         }
 
         let x = rect.center().x - line_width / 2.0;
-        let mut line_rect = rect.with_min_x(x).with_max_x(x + line_width);
-
-        if self.line_on_top {
-            line_rect = line_rect.with_max_y(rect.min.y + INDICATOR_HEIGHT);
-        } else {
-            line_rect = line_rect.with_min_y(rect.max.y - INDICATOR_HEIGHT);
-        };
+        let line_rect = rect
+            .with_min_x(x)
+            .with_max_x(x + line_width)
+            .with_min_y(rect.max.y - INDICATOR_HEIGHT);
 
         let color = if self.workspace.focused {
             let c = self.line_focused_color.unwrap_or(egui::Color32::CYAN);
