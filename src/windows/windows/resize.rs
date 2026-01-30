@@ -6,9 +6,9 @@ use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::{WindowAttributes, WindowId};
 
+use crate::config::WindowConfig;
 use crate::windows::app::{App, AppMessage};
 use crate::windows::egui_glue::{EguiView, EguiWindow};
-use crate::windows::window_registry_info::WindowRegistryInfo;
 
 impl App {
     pub fn create_resize_window(
@@ -16,8 +16,8 @@ impl App {
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
         host: HWND,
-        initial_info: WindowRegistryInfo,
-        subkey: String,
+        initial_info: WindowConfig,
+        monitor_id: String,
     ) -> anyhow::Result<()> {
         #[cfg(debug_assertions)]
         let class_name = "komorebi-switcher-debug::resize-window";
@@ -41,7 +41,7 @@ impl App {
             host,
             initial_info,
             info: initial_info,
-            subkey,
+            monitor_id,
         };
 
         let window = EguiWindow::new(window, &self.wgpu_instance, state)?;
@@ -57,9 +57,9 @@ struct ResizeWindowView {
     self_window_id: WindowId,
     host: HWND,
     proxy: EventLoopProxy<AppMessage>,
-    initial_info: WindowRegistryInfo,
-    info: WindowRegistryInfo,
-    subkey: String,
+    initial_info: WindowConfig,
+    info: WindowConfig,
+    monitor_id: String,
 }
 
 impl ResizeWindowView {
@@ -75,7 +75,10 @@ impl ResizeWindowView {
 
     fn save(&mut self) -> anyhow::Result<()> {
         self.info.apply(self.host)?;
-        self.info.save(&self.subkey)?;
+        self.proxy.send_event(AppMessage::UpdateWindowConfig {
+            monitor_id: self.monitor_id.clone(),
+            config: self.info,
+        })?;
         self.notify_window_info_changes()?;
         self.close_window()
     }

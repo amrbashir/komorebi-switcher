@@ -4,9 +4,9 @@ use winit::event::{StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::window::WindowId;
 
+use crate::config::WindowConfig;
 use crate::windows::egui_glue::EguiWindow;
 use crate::windows::utils::{HwndWithDrop, MultiMap};
-use crate::windows::window_registry_info::WindowRegistryInfo;
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {
@@ -17,14 +17,18 @@ pub enum AppMessage {
     StartMoveResize(String),
     CreateResizeWindow {
         host: isize,
-        info: WindowRegistryInfo,
-        subkey: String,
+        info: WindowConfig,
+        monitor_id: String,
         window_id: WindowId,
     },
     CloseWindow(WindowId),
-    NotifyWindowInfoChanges(WindowId, WindowRegistryInfo),
+    NotifyWindowInfoChanges(WindowId, WindowConfig),
     RecreateSwitcherWindows,
     TaskbarRecreated,
+    UpdateWindowConfig {
+        monitor_id: String,
+        config: WindowConfig,
+    },
 }
 
 pub struct App {
@@ -35,6 +39,7 @@ pub struct App {
     pub komorebi_state: crate::komorebi::State,
     #[allow(unused)]
     pub message_window: HwndWithDrop,
+    pub config: crate::config::Config,
 }
 
 impl App {
@@ -50,6 +55,8 @@ impl App {
 
         let message_window = unsafe { crate::windows::message_window::create(proxy.clone())? };
         let message_window = HwndWithDrop(message_window);
+
+        let config = crate::config::Config::load()?;
 
         // Start listening for komorebi state changes
         {
@@ -70,6 +77,7 @@ impl App {
             tray_icon,
             komorebi_state,
             message_window,
+            config,
         })
     }
 
@@ -140,11 +148,11 @@ impl App {
             AppMessage::CreateResizeWindow {
                 host,
                 info,
-                subkey,
+                monitor_id,
                 window_id,
             } => {
                 let host = HWND(*host as _);
-                self.create_resize_window(event_loop, *window_id, host, *info, subkey.clone())?
+                self.create_resize_window(event_loop, *window_id, host, *info, monitor_id.clone())?
             }
 
             AppMessage::CloseWindow(window_id) => {
@@ -188,6 +196,11 @@ impl App {
 
                 // Update tray icon menu items
                 self.recreate_tray_menu_items()?;
+            }
+
+            AppMessage::UpdateWindowConfig { monitor_id, config } => {
+                self.config.set(monitor_id.clone(), *config);
+                self.config.save()?;
             }
 
             _ => {}

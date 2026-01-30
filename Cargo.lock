@@ -2092,6 +2092,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.27.2",
+ "toml 0.8.2",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",

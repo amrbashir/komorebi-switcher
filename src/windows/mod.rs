@@ -9,7 +9,6 @@ mod taskbar;
 mod tray_icon;
 mod utils;
 mod widgets;
-mod window_registry_info;
 #[allow(clippy::module_inception)]
 mod windows;
 

@@ -17,7 +17,6 @@ use crate::windows::app::{App, AppMessage};
 use crate::windows::egui_glue::{EguiView, EguiWindow};
 use crate::windows::taskbar::Taskbar;
 use crate::windows::widgets::{LayoutButton, WorkspaceButton};
-use crate::windows::window_registry_info::WindowRegistryInfo;
 
 mod host;
 
@@ -28,7 +27,11 @@ impl App {
         taskbar: Taskbar,
         monitor_state: crate::komorebi::Monitor,
     ) -> anyhow::Result<EguiWindow> {
-        let window_info = WindowRegistryInfo::load(&monitor_state.id)?;
+        let window_info = self
+            .config
+            .get(&monitor_state.id)
+            .copied()
+            .unwrap_or_default();
 
         let host = unsafe { host::create_host(taskbar.hwnd, self.proxy.clone(), &window_info) }?;
 
@@ -87,7 +90,7 @@ pub struct SwitcherWindowView {
     accent_light2_color: Option<egui::Color32>,
     accent_color: Option<egui::Color32>,
     forgreound_color: Option<egui::Color32>,
-    window_info: WindowRegistryInfo,
+    window_info: crate::config::WindowConfig,
 }
 
 impl SwitcherWindowView {
@@ -96,7 +99,7 @@ impl SwitcherWindowView {
         host: HWND,
         taskbar: Taskbar,
         proxy: EventLoopProxy<AppMessage>,
-        window_info: WindowRegistryInfo,
+        window_info: crate::config::WindowConfig,
         monitor_state: crate::komorebi::Monitor,
     ) -> anyhow::Result<Self> {
         let mut view = Self {
@@ -217,7 +220,10 @@ impl SwitcherWindowView {
 
             tracing::debug!("Resizing host to match content rect");
 
-            self.window_info.save(&self.monitor_state.id)?;
+            self.proxy.send_event(AppMessage::UpdateWindowConfig {
+                monitor_id: self.monitor_state.id.clone(),
+                config: self.window_info,
+            })?;
             unsafe { SetWindowPos(self.host, None, 0, 0, width, height, SWP_NOMOVE) }?;
         }
 
@@ -226,11 +232,10 @@ impl SwitcherWindowView {
 
     fn show_move_resize_window(&self) -> anyhow::Result<()> {
         let host = self.host.0 as isize;
-        let info = self.window_info;
         let message = AppMessage::CreateResizeWindow {
             host,
-            info,
-            subkey: self.monitor_state.id.clone(),
+            info: self.window_info,
+            monitor_id: self.monitor_state.id.clone(),
             window_id: self.window.id(),
         };
         self.proxy.send_event(message)?;
@@ -238,7 +243,7 @@ impl SwitcherWindowView {
         Ok(())
     }
 
-    fn update_window_info(&mut self, info: &WindowRegistryInfo) -> anyhow::Result<()> {
+    fn update_window_info(&mut self, info: &crate::config::WindowConfig) -> anyhow::Result<()> {
         self.window_info = *info;
         unsafe { RemovePropW(self.host, host::IN_RESIZE_PROP) }?;
         Ok(())
