@@ -2,12 +2,13 @@
 
 ## [Unreleased]
 
-### Added 
+### Added
 
 - Add button to show active workspace layout and click to cycle through available layouts.
 
 ### Changed
 
+- Config is saved to `~/.config/komorebi-switcher.toml` instead of being hidden in Windows Registry and to also support new config options on macOS.
 - Active workspace indicator will no longer appear on top of the switcher button and will always be at the bottom of it.
 
 ## [0.9.2] - 2026-01-06

@@ -4,9 +4,9 @@ use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use winit::event_loop::EventLoopProxy;
 
+use crate::config::WindowConfig;
 use crate::windows::app::AppMessage;
 use crate::windows::utils;
-use crate::windows::window_registry_info::WindowRegistryInfo;
 
 #[cfg(debug_assertions)]
 const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher-debug::host");
@@ -18,7 +18,7 @@ pub const IN_RESIZE_PROP: PCWSTR = w!("komorebi::in_resize");
 pub unsafe fn create_host(
     taskbar_hwnd: HWND,
     proxy: EventLoopProxy<AppMessage>,
-    window_info: &WindowRegistryInfo,
+    window_info: &WindowConfig,
 ) -> anyhow::Result<HWND> {
     let hinstance = unsafe { GetModuleHandleW(None) }?;
 

@@ -3,6 +3,7 @@
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
+mod config;
 mod komorebi;
 #[cfg(target_os = "macos")]
 mod macos;
