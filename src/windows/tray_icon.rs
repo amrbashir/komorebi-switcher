@@ -1,106 +1,24 @@
-use muda::{PredefinedMenuItem, Submenu};
-use tray_icon::menu::{Menu, MenuItem};
 use tray_icon::TrayIconBuilder;
-use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 
-use crate::windows::app::AppMessage;
+use crate::windows::context_menu::AppContextMenu;
 
+#[allow(dead_code)]
 pub struct TrayIcon {
     #[allow(unused)]
     icon: tray_icon::TrayIcon,
-    proxy: EventLoopProxy<AppMessage>,
-    #[allow(unused)]
-    menu: Menu,
-    move_resize: Submenu,
-    move_resize_items: Vec<MenuItem>,
-    refresh: MenuItem,
-    quit: MenuItem,
+    context_menu: AppContextMenu,
 }
 
 impl TrayIcon {
-    pub fn new(proxy: EventLoopProxy<AppMessage>) -> anyhow::Result<Self> {
+    pub fn new(context_menu: AppContextMenu) -> anyhow::Result<Self> {
         let icon = tray_icon::Icon::from_resource(1, Some((32, 32)))?;
-
-        let move_resize = Submenu::new("Move && Resize", true);
-        let refresh = MenuItem::new("Refresh", true, None);
-        let separator = PredefinedMenuItem::separator();
-
-        #[cfg(debug_assertions)]
-        let title = MenuItem::new(concat!(env!("CARGO_PKG_NAME"), " (debug)"), false, None);
-        #[cfg(not(debug_assertions))]
-        let title = MenuItem::new(env!("CARGO_PKG_NAME"), false, None);
-
-        let version = MenuItem::new(concat!("v", env!("CARGO_PKG_VERSION")), false, None);
-        let quit = MenuItem::new("Quit", true, None);
-
-        let menu = Menu::with_items(&[
-            &move_resize,
-            &refresh,
-            &separator,
-            &title,
-            &version,
-            &separator,
-            &quit,
-        ])?;
 
         TrayIconBuilder::new()
             .with_icon(icon)
             .with_tooltip(std::env!("CARGO_PKG_NAME"))
-            .with_menu(Box::new(menu.clone()))
+            .with_menu(Box::new(context_menu.menu.clone()))
             .build()
             .map_err(Into::into)
-            .map(|icon| Self {
-                icon,
-                proxy,
-                menu,
-                move_resize,
-                move_resize_items: vec![],
-                refresh,
-                quit,
-            })
-    }
-
-    pub fn is_move_resize_item(&self, id: &str) -> bool {
-        self.move_resize_items.iter().any(|item| item.id() == id)
-    }
-
-    pub fn destroy_items_for_switchers(&mut self) -> anyhow::Result<()> {
-        for item in &self.move_resize_items {
-            self.move_resize.remove(item)?;
-        }
-
-        self.move_resize_items.clear();
-
-        Ok(())
-    }
-
-    pub fn create_items_for_switchers(&mut self, switchers: Vec<String>) -> anyhow::Result<()> {
-        for switcher in switchers {
-            let item = MenuItem::with_id(&switcher, &switcher, true, None);
-            self.move_resize.append(&item)?;
-            self.move_resize_items.push(item);
-        }
-
-        Ok(())
-    }
-
-    pub fn handle_app_message(
-        &self,
-        event_loop: &ActiveEventLoop,
-        event: &AppMessage,
-    ) -> anyhow::Result<()> {
-        match event {
-            AppMessage::MenuEvent(event) if self.is_move_resize_item(event.id().0.as_str()) => {
-                let id = event.id().0.clone();
-                self.proxy.send_event(AppMessage::StartMoveResize(id))?;
-            }
-            AppMessage::MenuEvent(event) if event.id() == self.refresh.id() => {
-                self.proxy.send_event(AppMessage::RecreateSwitcherWindows)?
-            }
-            AppMessage::MenuEvent(event) if event.id() == self.quit.id() => event_loop.exit(),
-            _ => {}
-        }
-
-        Ok(())
+            .map(|icon| Self { icon, context_menu })
     }
 }

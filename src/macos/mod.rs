@@ -16,6 +16,7 @@ use objc2_foundation::{
 
 use self::workspace_button::WorkspaceButton;
 use self::workspaces_stack_view::WorkspacesStackView;
+use crate::config::Config;
 use crate::macos::layout_button::LayoutButton;
 
 mod layout_button;
@@ -27,6 +28,7 @@ pub struct AppDelegateIvars {
     ns_status_item: OnceCell<Retained<NSStatusItem>>,
     ns_stack_view: OnceCell<Retained<WorkspacesStackView>>,
     buttons: RefCell<Vec<Retained<NSView>>>,
+    config: OnceCell<Config>,
 }
 
 impl Default for AppDelegateIvars {
@@ -35,6 +37,7 @@ impl Default for AppDelegateIvars {
             ns_status_item: OnceCell::new(),
             ns_stack_view: OnceCell::new(),
             buttons: RefCell::new(Vec::new()),
+            config: OnceCell::new(),
         }
     }
 }
@@ -95,6 +98,10 @@ define_class!(
             let _ = self.ivars().ns_status_item.set(ns_status_item);
             let _ = self.ivars().ns_stack_view.set(stack_view);
 
+            // Load config
+            let config = Config::load().unwrap_or_default();
+            let _ = self.ivars().config.set(config);
+
             // Create initial workspace buttons
             self.update_workspace_buttons(komorebi_state);
 
@@ -131,6 +138,7 @@ impl AppDelegate {
         // SAFETY: We have initialized these ivars in `did_finish_launching`.
         let stack_view = self.ivars().ns_stack_view.get().unwrap();
         let mut views = self.ivars().buttons.borrow_mut();
+        let config = self.ivars().config.get().unwrap();
 
         // Remove all existing buttons from stack view
         for button in views.iter() {
@@ -154,19 +162,21 @@ impl AppDelegate {
         }
 
         // show layout button for focused workspace
-        if let Some(focused_ws) = monitor.focused_workspace() {
-            let separator = NSTextField::labelWithString(ns_string!("|"), mtm);
-            separator.setAlignment(NSTextAlignment::Center);
-            stack_view.addArrangedSubview(&separator);
+        if config.show_layout_button {
+            if let Some(focused_ws) = monitor.focused_workspace() {
+                let separator = NSTextField::labelWithString(ns_string!("|"), mtm);
+                separator.setAlignment(NSTextAlignment::Center);
+                stack_view.addArrangedSubview(&separator);
 
-            // Store separator
-            views.push(separator.downcast().unwrap());
+                // Store separator
+                views.push(separator.downcast().unwrap());
 
-            let layout_button = LayoutButton::new(mtm, focused_ws);
-            stack_view.addArrangedSubview(&layout_button);
+                let layout_button = LayoutButton::new(mtm, focused_ws);
+                stack_view.addArrangedSubview(&layout_button);
 
-            // Store button
-            views.push(layout_button.downcast().unwrap());
+                // Store button
+                views.push(layout_button.downcast().unwrap());
+            }
         }
 
         // SAFETY: We have initialized this ivar in `did_finish_launching`.

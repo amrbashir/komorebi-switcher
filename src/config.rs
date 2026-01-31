@@ -12,11 +12,21 @@ pub struct WindowConfig {
     pub height: i32,
     pub auto_width: bool,
     pub auto_height: bool,
+    #[serde(default)]
+    pub show_layout_button: Option<bool>,
+}
+
+impl WindowConfig {
+    pub fn show_layout_button(&self, global: bool) -> bool {
+        self.show_layout_button.unwrap_or(global)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     pub monitors: HashMap<String, WindowConfig>,
+    #[serde(default)]
+    pub show_layout_button: bool,
 }
 
 impl Config {
@@ -76,6 +86,17 @@ impl Config {
         self.monitors.get(monitor_id)
     }
 
+    pub fn get_or_insert(&mut self, monitor_id: &str) -> &mut WindowConfig {
+        self.monitors.entry(monitor_id.to_string()).or_default()
+    }
+
+    pub fn show_layout_button(&self, monitor_id: &str) -> bool {
+        self.monitors
+            .get(monitor_id)
+            .map(|c| c.show_layout_button(self.show_layout_button))
+            .unwrap_or(self.show_layout_button)
+    }
+
     pub fn set(&mut self, monitor_id: String, config: WindowConfig) {
         self.monitors.insert(monitor_id, config);
     }
@@ -122,52 +143,11 @@ impl Config {
                     height,
                     auto_width,
                     auto_height,
+                    show_layout_button: None,
                 },
             );
         }
 
         Ok(monitors)
-    }
-}
-
-#[cfg(target_os = "windows")]
-impl WindowConfig {
-    pub fn apply(&mut self, hwnd: windows::Win32::Foundation::HWND) -> anyhow::Result<()> {
-        use windows::Win32::Foundation::*;
-        use windows::Win32::UI::WindowsAndMessaging::*;
-
-        let height = if self.auto_height {
-            let parent = unsafe { GetParent(hwnd) }?;
-            let mut rect = RECT::default();
-            unsafe { GetClientRect(parent, &mut rect) }?;
-            rect.bottom - rect.top
-        } else {
-            self.height
-        };
-
-        let width = if self.auto_width {
-            let child = unsafe { GetWindow(hwnd, GW_CHILD) }?;
-            let mut rect = RECT::default();
-            unsafe { GetClientRect(child, &mut rect) }?;
-            rect.right - rect.left
-        } else {
-            self.width
-        };
-
-        self.width = width;
-        self.height = height;
-
-        unsafe {
-            SetWindowPos(
-                hwnd,
-                None,
-                self.x,
-                self.y,
-                width,
-                height,
-                SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
-            )
-            .map_err(Into::into)
-        }
     }
 }

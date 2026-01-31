@@ -29,21 +29,6 @@ Or using Homebrew (macOS):
 brew install amrbashir/tap/komorebi-switcher
 ```
 
-## Usage
-
-- <kbd>Left Click</kbd> any workspace to switch to it.
-- <kbd>Right Click</kbd> to open the context menu:
-
-  - **Move & Resize** (Windows): Open the move and resize dialog.
-
-    ![Move and Resize panel](assets/screenshots/move-resize-panel.png)
-
-  - **Refresh** (Windows): Force recreate switcher windows.
-  - **Quit**: Quit the app
-
-> [!TIP]
-> You can also open the context menu from the tray icon on Windows.
-
 ## Development
 
 1. Install [Rust](https://rustup.rs/)

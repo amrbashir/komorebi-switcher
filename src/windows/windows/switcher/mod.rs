@@ -1,19 +1,21 @@
 use std::num::NonZero;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
-use muda::{ContextMenu, Menu, MenuItem, PredefinedMenuItem};
+use muda::ContextMenu;
 use raw_window_handle::{RawWindowHandle, Win32WindowHandle};
 use windows::Win32::Foundation::*;
 use windows::Win32::UI::HiDpi::GetDpiForWindow;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::UI::ViewManagement::{UIColorType, UISettings};
 use winit::dpi::PhysicalSize;
-use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
+use winit::event_loop::ActiveEventLoop;
 use winit::platform::windows::WindowAttributesExtWindows;
-use winit::window::{Window, WindowAttributes};
+use winit::window::WindowAttributes;
 
+use crate::config::{Config, WindowConfig};
 use crate::komorebi::CycleDirection;
 use crate::windows::app::{App, AppMessage};
+use crate::windows::context_menu::AppContextMenu;
 use crate::windows::egui_glue::{EguiView, EguiWindow};
 use crate::windows::taskbar::Taskbar;
 use crate::windows::widgets::{LayoutButton, WorkspaceButton};
@@ -26,12 +28,12 @@ impl App {
         event_loop: &ActiveEventLoop,
         taskbar: Taskbar,
         monitor_state: crate::komorebi::Monitor,
+        context_menu: AppContextMenu,
     ) -> anyhow::Result<EguiWindow> {
-        let window_info = self
-            .config
-            .get(&monitor_state.id)
-            .copied()
-            .unwrap_or_default();
+        let window_info = {
+            let config = self.config.read().unwrap();
+            config.get(&monitor_state.id).copied().unwrap_or_default()
+        };
 
         let host = unsafe { host::create_host(taskbar.hwnd, self.proxy.clone(), &window_info) }?;
 
@@ -61,12 +63,11 @@ impl App {
         let window = Arc::new(window);
 
         let state = SwitcherWindowView::new(
-            window.clone(),
             host,
             taskbar,
-            self.proxy.clone(),
-            window_info,
             monitor_state,
+            self.config.clone(),
+            context_menu,
         )?;
 
         EguiWindow::new(window, &self.wgpu_instance, state)
@@ -74,45 +75,39 @@ impl App {
 }
 
 struct ContextMenuState {
-    menu: muda::Menu,
-    move_resize: muda::MenuItem,
-    refresh: muda::MenuItem,
-    quit: muda::MenuItem,
+    menu: AppContextMenu,
 }
 
 pub struct SwitcherWindowView {
-    window: Arc<Window>,
+    config: Arc<RwLock<crate::config::Config>>,
+    preview_config: Option<Config>,
     host: HWND,
     taskbar: Taskbar,
-    proxy: EventLoopProxy<AppMessage>,
     context_menu: ContextMenuState,
     monitor_state: crate::komorebi::Monitor,
     accent_light2_color: Option<egui::Color32>,
     accent_color: Option<egui::Color32>,
     forgreound_color: Option<egui::Color32>,
-    window_info: crate::config::WindowConfig,
 }
 
 impl SwitcherWindowView {
     fn new(
-        window: Arc<Window>,
         host: HWND,
         taskbar: Taskbar,
-        proxy: EventLoopProxy<AppMessage>,
-        window_info: crate::config::WindowConfig,
         monitor_state: crate::komorebi::Monitor,
+        config: Arc<RwLock<crate::config::Config>>,
+        context_menu: AppContextMenu,
     ) -> anyhow::Result<Self> {
         let mut view = Self {
-            window,
             host,
-            proxy,
             taskbar,
             monitor_state,
-            context_menu: Self::create_context_menu()?,
+            context_menu: ContextMenuState { menu: context_menu },
             accent_color: None,
             accent_light2_color: None,
             forgreound_color: None,
-            window_info,
+            config,
+            preview_config: None,
         };
 
         if let Err(e) = view.update_system_colors() {
@@ -122,33 +117,10 @@ impl SwitcherWindowView {
         Ok(view)
     }
 
-    fn create_context_menu() -> anyhow::Result<ContextMenuState> {
-        let move_resize = MenuItem::new("Move && Resize", true, None);
-        let refresh = MenuItem::new("Refresh", true, None);
-        let separator = PredefinedMenuItem::separator();
-
-        #[cfg(debug_assertions)]
-        let title = MenuItem::new(concat!(env!("CARGO_PKG_NAME"), " (debug)"), false, None);
-        #[cfg(not(debug_assertions))]
-        let title = MenuItem::new(env!("CARGO_PKG_NAME"), false, None);
-
-        let version = MenuItem::new(concat!("v", env!("CARGO_PKG_VERSION")), false, None);
-        let quit = MenuItem::new("Quit", true, None);
-        let menu = Menu::with_items(&[
-            &move_resize,
-            &refresh,
-            &separator,
-            &title,
-            &version,
-            &separator,
-            &quit,
-        ])?;
-
-        Ok(ContextMenuState {
-            menu,
-            move_resize,
-            refresh,
-            quit,
+    fn effective_config(&self) -> Config {
+        self.preview_config.clone().unwrap_or_else(|| {
+            let config = self.config.read().unwrap();
+            config.clone()
         })
     }
 
@@ -158,6 +130,7 @@ impl SwitcherWindowView {
         let hwnd = self.host.0 as isize;
         unsafe {
             self.context_menu
+                .menu
                 .menu
                 .show_context_menu_for_hwnd(hwnd, None)
         };
@@ -181,12 +154,6 @@ impl SwitcherWindowView {
         Ok(())
     }
 
-    // fn host_window_rect(&self) -> anyhow::Result<RECT> {
-    //     let mut rect = RECT::default();
-    //     unsafe { GetWindowRect(self.host, &mut rect) }?;
-    //     Ok(rect)
-    // }
-
     fn taskbar_height(&self) -> anyhow::Result<i32> {
         let mut rect = RECT::default();
         unsafe { GetClientRect(self.taskbar.hwnd, &mut rect) }?;
@@ -196,71 +163,43 @@ impl SwitcherWindowView {
     const WORKSPACES_MARGIN: egui::Margin = egui::Margin::same(1);
 
     fn resize_host_to_rect(&mut self, rect: egui::Rect, ppp: f32) -> anyhow::Result<()> {
+        let config = self.effective_config();
+        let mut window_info = config
+            .get(&self.monitor_state.id)
+            .copied()
+            .unwrap_or_default();
+
         let rect = rect + Self::WORKSPACES_MARGIN;
         let rect = rect * ppp;
 
-        let height = if self.window_info.auto_height {
+        let height = if window_info.auto_height {
             self.taskbar_height()?
         } else {
-            self.window_info.height
+            window_info.height
         };
 
-        let width = if self.window_info.auto_width {
+        let width = if window_info.auto_width {
             rect.width() as i32
         } else {
-            self.window_info.width
+            window_info.width
         };
 
-        let curr_width = self.window_info.width;
-        let curr_height = self.window_info.height;
+        let curr_width = window_info.width;
+        let curr_height = window_info.height;
 
         if curr_width != width || curr_height != height {
-            self.window_info.width = width;
-            self.window_info.height = height;
+            window_info.width = width;
+            window_info.height = height;
 
             tracing::debug!("Resizing host to match content rect");
 
-            self.proxy.send_event(AppMessage::UpdateWindowConfig {
-                monitor_id: self.monitor_state.id.clone(),
-                config: self.window_info,
-            })?;
+            let mut config = self.config.write().unwrap();
+            config.set(self.monitor_state.id.clone(), window_info);
+            config.save()?;
             unsafe { SetWindowPos(self.host, None, 0, 0, width, height, SWP_NOMOVE) }?;
         }
 
         Ok(())
-    }
-
-    fn show_move_resize_window(&self) -> anyhow::Result<()> {
-        let host = self.host.0 as isize;
-        let message = AppMessage::CreateResizeWindow {
-            host,
-            info: self.window_info,
-            monitor_id: self.monitor_state.id.clone(),
-            window_id: self.window.id(),
-        };
-        self.proxy.send_event(message)?;
-        unsafe { SetPropW(self.host, host::IN_RESIZE_PROP, Some(HANDLE(1 as _))) }?;
-        Ok(())
-    }
-
-    fn update_window_info(&mut self, info: &crate::config::WindowConfig) -> anyhow::Result<()> {
-        self.window_info = *info;
-        unsafe { RemovePropW(self.host, host::IN_RESIZE_PROP) }?;
-        Ok(())
-    }
-
-    fn close_host(&self) -> anyhow::Result<()> {
-        tracing::info!("Closing host window");
-
-        unsafe {
-            PostMessageW(
-                Some(self.host),
-                WM_CLOSE,
-                WPARAM::default(),
-                LPARAM::default(),
-            )
-            .map_err(Into::into)
-        }
     }
 
     fn is_system_dark_mode(&self) -> bool {
@@ -304,15 +243,18 @@ impl SwitcherWindowView {
                 }
 
                 // show layout button for focused workspace
-                if let Some(focused_ws) = self.monitor_state.focused_workspace() {
-                    ui.add(egui::Label::new("|"));
+                let config = self.effective_config();
+                if config.show_layout_button(&self.monitor_state.id) {
+                    if let Some(focused_ws) = self.monitor_state.focused_workspace() {
+                        ui.add(egui::Label::new("|"));
 
-                    let btn = LayoutButton::new(&focused_ws.layout)
-                        .dark_mode(Some(self.is_system_dark_mode()))
-                        .text_color_opt(self.forgreound_color);
+                        let btn = LayoutButton::new(&focused_ws.layout)
+                            .dark_mode(Some(self.is_system_dark_mode()))
+                            .text_color_opt(self.forgreound_color);
 
-                    if ui.add(btn).clicked() {
-                        crate::komorebi::cycle_layout(CycleDirection::Next);
+                        if ui.add(btn).clicked() {
+                            crate::komorebi::cycle_layout(CycleDirection::Next);
+                        }
                     }
                 }
             })
@@ -333,6 +275,41 @@ impl SwitcherWindowView {
     }
 }
 
+impl WindowConfig {
+    pub fn apply(&self, hwnd: windows::Win32::Foundation::HWND) -> anyhow::Result<()> {
+        let height = if self.auto_height {
+            let parent = unsafe { GetParent(hwnd) }?;
+            let mut rect = RECT::default();
+            unsafe { GetClientRect(parent, &mut rect) }?;
+            rect.bottom - rect.top
+        } else {
+            self.height
+        };
+
+        let width = if self.auto_width {
+            let child = unsafe { GetWindow(hwnd, GW_CHILD) }?;
+            let mut rect = RECT::default();
+            unsafe { GetClientRect(child, &mut rect) }?;
+            rect.right - rect.left
+        } else {
+            self.width
+        };
+
+        unsafe {
+            SetWindowPos(
+                hwnd,
+                None,
+                self.x,
+                self.y,
+                width,
+                height,
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+            )
+            .map_err(Into::into)
+        }
+    }
+}
+
 impl EguiView for SwitcherWindowView {
     fn handle_app_message(
         &mut self,
@@ -350,29 +327,18 @@ impl EguiView for SwitcherWindowView {
                     .unwrap_or_default();
             }
 
-            AppMessage::MenuEvent(e) if e.id() == self.context_menu.move_resize.id() => {
-                self.show_move_resize_window()?
+            AppMessage::PreviewConfig(config) => {
+                self.preview_config = Some(config.clone());
+
+                let monitor_config = config.get(&self.monitor_state.id).unwrap();
+                monitor_config.apply(self.host)?;
             }
 
-            AppMessage::MenuEvent(e) if e.id() == self.context_menu.refresh.id() => {
-                self.proxy.send_event(AppMessage::RecreateSwitcherWindows)?
-            }
-
-            AppMessage::MenuEvent(e) if e.id() == self.context_menu.quit.id() => {
-                self.close_host()?
-            }
-
-            AppMessage::StartMoveResize(menu_id) if menu_id.ends_with(&self.monitor_state.id) => {
-                self.show_move_resize_window()?
+            AppMessage::ClearPreviewConfig => {
+                self.preview_config = None;
             }
 
             AppMessage::SystemSettingsChanged => self.update_system_colors()?,
-
-            AppMessage::NotifyWindowInfoChanges(window_id, info)
-                if *window_id == self.window.id() =>
-            {
-                self.update_window_info(info)?
-            }
 
             AppMessage::DpiChanged => {
                 let dpi = unsafe { GetDpiForWindow(self.host) } as f32;
@@ -389,6 +355,12 @@ impl EguiView for SwitcherWindowView {
     fn update(&mut self, ctx: &egui::Context) {
         self.transparent_panel(ctx).show(ctx, |ui| {
             let response = self.workspaces_row(ui);
+
+            // Skip resizing if we are in preview mode, to avoid infinite resize loop
+            if self.preview_config.is_some() {
+                return;
+            }
+
             if let Err(e) = self.resize_host_to_rect(response.rect, ctx.pixels_per_point()) {
                 tracing::error!("Failed to resize host to rect: {e}");
             }
