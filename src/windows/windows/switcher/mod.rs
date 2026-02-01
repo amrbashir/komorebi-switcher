@@ -32,7 +32,7 @@ impl App {
     ) -> anyhow::Result<EguiWindow> {
         let window_info = {
             let config = self.config.read().unwrap();
-            config.get(&monitor_state.id).copied().unwrap_or_default()
+            config.get_monitor(&monitor_state.id)
         };
 
         let host = unsafe { host::create_host(taskbar.hwnd, self.proxy.clone(), &window_info) }?;
@@ -164,10 +164,7 @@ impl SwitcherWindowView {
 
     fn resize_host_to_rect(&mut self, rect: egui::Rect, ppp: f32) -> anyhow::Result<()> {
         let config = self.effective_config();
-        let mut window_info = config
-            .get(&self.monitor_state.id)
-            .copied()
-            .unwrap_or_default();
+        let mut window_info = config.get_monitor(&self.monitor_state.id);
 
         let rect = rect + Self::WORKSPACES_MARGIN;
         let rect = rect * ppp;
@@ -194,7 +191,7 @@ impl SwitcherWindowView {
             tracing::debug!("Resizing host to match content rect");
 
             let mut config = self.config.write().unwrap();
-            config.set(self.monitor_state.id.clone(), window_info);
+            config.set_monitor(&self.monitor_state.id, window_info);
             config.save()?;
             unsafe { SetWindowPos(self.host, None, 0, 0, width, height, SWP_NOMOVE) }?;
         }
@@ -244,7 +241,12 @@ impl SwitcherWindowView {
 
                 // show layout button for focused workspace
                 let config = self.effective_config();
-                if config.show_layout_button(&self.monitor_state.id) {
+                let monitor_config = config.get_monitor(&self.monitor_state.id);
+                let show_layout_button = match monitor_config.show_layout_button {
+                    Some(show) => show,
+                    None => config.show_layout_button,
+                };
+                if show_layout_button {
                     if let Some(focused_ws) = self.monitor_state.focused_workspace() {
                         ui.add(egui::Label::new("|"));
 
@@ -276,7 +278,7 @@ impl SwitcherWindowView {
 }
 
 impl WindowConfig {
-    pub fn apply(&self, hwnd: windows::Win32::Foundation::HWND) -> anyhow::Result<()> {
+    pub fn apply_bounds_to(&self, hwnd: windows::Win32::Foundation::HWND) -> anyhow::Result<()> {
         let height = if self.auto_height {
             let parent = unsafe { GetParent(hwnd) }?;
             let mut rect = RECT::default();
@@ -330,8 +332,8 @@ impl EguiView for SwitcherWindowView {
             AppMessage::PreviewConfig(config) => {
                 self.preview_config = Some(config.clone());
 
-                let monitor_config = config.get(&self.monitor_state.id).unwrap();
-                monitor_config.apply(self.host)?;
+                let monitor_config = config.get_monitor(&self.monitor_state.id);
+                monitor_config.apply_bounds_to(self.host)?;
             }
 
             AppMessage::ClearPreviewConfig => {

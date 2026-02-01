@@ -11,14 +11,14 @@ use crate::windows::app::{App, AppMessage};
 use crate::windows::egui_glue::{EguiView, EguiWindow};
 
 impl App {
-    pub fn create_config_window(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
+    pub fn create_settings_window(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
         #[cfg(debug_assertions)]
-        let class_name = "komorebi-switcher-debug::config-window";
+        let class_name = "komorebi-switcher-debug::settings-window";
         #[cfg(not(debug_assertions))]
-        let class_name = "komorebi-switcher::config-window";
+        let class_name = "komorebi-switcher::settings-window";
 
         let attrs = WindowAttributes::default()
-            .with_title("Configuration")
+            .with_title("Settings")
             .with_class_name(class_name)
             .with_inner_size(PhysicalSize::new(450, 600))
             .with_resizable(true)
@@ -27,7 +27,7 @@ impl App {
         let window = event_loop.create_window(attrs)?;
         let window = Arc::new(window);
 
-        let state = ConfigWindowView {
+        let state = SettingsWindowView {
             window_id: window.id(),
             proxy: self.proxy.clone(),
             config_: self.config.clone(),
@@ -43,7 +43,7 @@ impl App {
     }
 }
 
-struct ConfigWindowView {
+struct SettingsWindowView {
     window_id: WindowId,
     proxy: EventLoopProxy<AppMessage>,
     config_: Arc<RwLock<Config>>,
@@ -51,7 +51,7 @@ struct ConfigWindowView {
     komorebi_state: State,
 }
 
-impl ConfigWindowView {
+impl SettingsWindowView {
     fn close_window(&self) -> anyhow::Result<()> {
         let message = AppMessage::CloseWindow(self.window_id);
         self.proxy.send_event(message).map_err(Into::into)
@@ -88,7 +88,7 @@ impl ConfigWindowView {
     }
 
     fn layout_button_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
-        let monitor_config = self.config.get_or_insert(monitor_id);
+        let monitor_config = self.config.get_monitor_or_default(monitor_id);
 
         ui.label("Show layout button");
 
@@ -129,7 +129,7 @@ impl ConfigWindowView {
     }
 
     fn monitor_settings_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
-        let monitor_config = self.config.get_or_insert(monitor_id);
+        let monitor_config = self.config.get_monitor_or_default(monitor_id);
 
         ui.label("X");
         ui.add(egui::DragValue::new(&mut monitor_config.x));
@@ -209,7 +209,7 @@ impl ConfigWindowView {
     }
 }
 
-impl EguiView for ConfigWindowView {
+impl EguiView for SettingsWindowView {
     fn handle_window_event(
         &mut self,
         _ctx: &egui::Context,

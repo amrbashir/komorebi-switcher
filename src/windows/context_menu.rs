@@ -48,7 +48,7 @@ impl AppContextMenu {
     ) -> anyhow::Result<()> {
         match event {
             AppMessage::MenuEvent(event) if *event.id() == self.settings.id() => {
-                self.proxy.send_event(AppMessage::CreateConfigWindow)?
+                self.proxy.send_event(AppMessage::CreateSettingsWindow)?
             }
             AppMessage::MenuEvent(event) if *event.id() == self.refresh.id() => {
                 self.proxy.send_event(AppMessage::RecreateSwitcherWindows)?

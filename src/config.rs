@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -18,16 +16,11 @@ pub struct WindowConfig {
     pub show_layout_button: Option<bool>,
 }
 
-impl WindowConfig {
-    pub fn show_layout_button(&self, global: bool) -> bool {
-        self.show_layout_button.unwrap_or(global)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub monitors: HashMap<String, WindowConfig>,
+
     #[serde(default)]
     pub show_layout_button: bool,
 }
@@ -59,12 +52,13 @@ impl Config {
                 config_file.display()
             );
 
-            let config = Config::default();
+            #[allow(unused_mut)]
+            let mut config = Config::default();
+
             #[cfg(target_os = "windows")]
             {
                 tracing::info!("Migrating config from Windows registry if any");
 
-                let mut config = config;
                 let migrated = Self::migrate_from_registry()?;
                 config.monitors = migrated;
             }
@@ -87,23 +81,19 @@ impl Config {
         Ok(())
     }
 
-    pub fn get(&self, monitor_id: &str) -> Option<&WindowConfig> {
-        self.monitors.get(monitor_id)
+    #[allow(dead_code)]
+    pub fn get_monitor(&self, monitor_id: &str) -> WindowConfig {
+        self.monitors.get(monitor_id).copied().unwrap_or_default()
     }
 
-    pub fn get_or_insert(&mut self, monitor_id: &str) -> &mut WindowConfig {
+    #[allow(dead_code)]
+    pub fn get_monitor_or_default(&mut self, monitor_id: &str) -> &mut WindowConfig {
         self.monitors.entry(monitor_id.to_string()).or_default()
     }
 
-    pub fn show_layout_button(&self, monitor_id: &str) -> bool {
-        self.monitors
-            .get(monitor_id)
-            .map(|c| c.show_layout_button(self.show_layout_button))
-            .unwrap_or(self.show_layout_button)
-    }
-
-    pub fn set(&mut self, monitor_id: String, config: WindowConfig) {
-        self.monitors.insert(monitor_id, config);
+    #[allow(dead_code)]
+    pub fn set_monitor(&mut self, monitor_id: &str, config: WindowConfig) {
+        self.monitors.insert(monitor_id.to_string(), config);
     }
 }
 

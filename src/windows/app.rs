@@ -16,7 +16,7 @@ pub enum AppMessage {
     MenuEvent(muda::MenuEvent),
     SystemSettingsChanged,
     DpiChanged,
-    CreateConfigWindow,
+    CreateSettingsWindow,
     PreviewConfig(Config),
     ClearPreviewConfig,
     CloseWindow(WindowId),
@@ -129,7 +129,7 @@ impl App {
         message: &AppMessage,
     ) -> anyhow::Result<()> {
         match message {
-            AppMessage::CreateConfigWindow => self.create_config_window(event_loop)?,
+            AppMessage::CreateSettingsWindow => self.create_settings_window(event_loop)?,
 
             AppMessage::CloseWindow(window_id) => {
                 self.windows.remove(window_id);

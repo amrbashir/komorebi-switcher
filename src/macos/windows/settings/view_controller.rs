@@ -62,6 +62,12 @@ impl SettingsViewController {
 
     fn setup_ui(&self) {
         let main_stack = self.create_vstack();
+        main_stack.setEdgeInsets(NSEdgeInsets {
+            top: 16.0,
+            left: 16.0,
+            bottom: 16.0,
+            right: 16.0,
+        });
 
         main_stack.addArrangedSubview(&self.create_header("Global Settings"));
         main_stack.addArrangedSubview(&self.create_global_settings_ui());
@@ -78,12 +84,6 @@ impl SettingsViewController {
         main_stack.setOrientation(NSUserInterfaceLayoutOrientation::Vertical);
         main_stack.setAlignment(NSLayoutAttribute::Leading);
         main_stack.setSpacing(12.0);
-        main_stack.setEdgeInsets(NSEdgeInsets {
-            top: 16.0,
-            left: 16.0,
-            bottom: 16.0,
-            right: 16.0,
-        });
 
         main_stack
     }

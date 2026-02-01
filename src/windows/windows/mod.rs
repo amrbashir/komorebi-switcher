@@ -1,2 +1,2 @@
-mod config_window;
+mod settings;
 mod switcher;
