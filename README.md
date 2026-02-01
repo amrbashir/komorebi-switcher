@@ -29,20 +29,31 @@ Or using Homebrew (macOS):
 brew install amrbashir/tap/komorebi-switcher
 ```
 
-## Usage
+## Config
 
-- <kbd>Left Click</kbd> any workspace to switch to it.
-- <kbd>Right Click</kbd> to open the context menu:
+The config is located at `~/.config/komorebi-switcher.toml`. You can edit this file directly
+or use the settings window accessible from the context menu.
 
-  - **Move & Resize** (Windows): Open the move and resize dialog.
+```toml
+# Global settings
+show_layout_button = false
 
-    ![Move and Resize panel](assets/screenshots/move-resize-panel.png)
-
-  - **Refresh** (Windows): Force recreate switcher windows.
-  - **Quit**: Quit the app
-
-> [!TIP]
-> You can also open the context menu from the tray icon on Windows.
+# Settings for each monitor (Windows only for now)
+#   Syntax is [monitors.<id>] where <id> is one of:
+#     - serial_number_id
+#     - device_id
+#     - name
+#   The app will try to match in the above order, depending on what info is available,
+#   Run `komorebic monitor-information` to get info about your monitors
+[monitors.0]
+x = 378
+y = 1
+width = 402
+height = 65
+auto_width = true
+auto_height = true
+show_layout_button = false # Can be removed to use the global setting
+```
 
 ## Development
 

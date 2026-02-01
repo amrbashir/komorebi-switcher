@@ -13,8 +13,6 @@ const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher-debug::host");
 #[cfg(not(debug_assertions))]
 const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher::host");
 
-pub const IN_RESIZE_PROP: PCWSTR = w!("komorebi::in_resize");
-
 pub unsafe fn create_host(
     taskbar_hwnd: HWND,
     proxy: EventLoopProxy<AppMessage>,
@@ -105,12 +103,6 @@ unsafe extern "system" fn wndproc_host(
 
         // Resize children when this host is resized
         WM_SIZE => {
-            // Skip resizing children if this host is in resize mode
-            let prop = GetPropW(hwnd, IN_RESIZE_PROP);
-            if prop.0 as isize != 0 {
-                return DefWindowProcW(hwnd, msg, wparam, lparam);
-            }
-
             let mut rect = RECT::default();
             if GetClientRect(hwnd, &mut rect).is_ok() {
                 let width = rect.right - rect.left;

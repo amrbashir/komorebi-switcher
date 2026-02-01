@@ -1,2 +1,2 @@
-mod resize;
+mod settings;
 mod switcher;

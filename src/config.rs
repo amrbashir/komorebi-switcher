@@ -12,11 +12,17 @@ pub struct WindowConfig {
     pub height: i32,
     pub auto_width: bool,
     pub auto_height: bool,
+    #[serde(default)]
+    pub show_layout_button: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
+    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub monitors: HashMap<String, WindowConfig>,
+
+    #[serde(default)]
+    pub show_layout_button: bool,
 }
 
 impl Config {
@@ -46,15 +52,18 @@ impl Config {
                 config_file.display()
             );
 
+            #[allow(unused_mut)]
             let mut config = Config::default();
+
             #[cfg(target_os = "windows")]
             {
                 tracing::info!("Migrating config from Windows registry if any");
 
                 let migrated = Self::migrate_from_registry()?;
                 config.monitors = migrated;
-                config.save()?;
             }
+
+            config.save()?;
 
             Ok(config)
         }
@@ -72,12 +81,19 @@ impl Config {
         Ok(())
     }
 
-    pub fn get(&self, monitor_id: &str) -> Option<&WindowConfig> {
-        self.monitors.get(monitor_id)
+    #[allow(dead_code)]
+    pub fn get_monitor(&self, monitor_id: &str) -> WindowConfig {
+        self.monitors.get(monitor_id).copied().unwrap_or_default()
     }
 
-    pub fn set(&mut self, monitor_id: String, config: WindowConfig) {
-        self.monitors.insert(monitor_id, config);
+    #[allow(dead_code)]
+    pub fn get_monitor_or_default(&mut self, monitor_id: &str) -> &mut WindowConfig {
+        self.monitors.entry(monitor_id.to_string()).or_default()
+    }
+
+    #[allow(dead_code)]
+    pub fn set_monitor(&mut self, monitor_id: &str, config: WindowConfig) {
+        self.monitors.insert(monitor_id.to_string(), config);
     }
 }
 
@@ -122,52 +138,11 @@ impl Config {
                     height,
                     auto_width,
                     auto_height,
+                    show_layout_button: None,
                 },
             );
         }
 
         Ok(monitors)
-    }
-}
-
-#[cfg(target_os = "windows")]
-impl WindowConfig {
-    pub fn apply(&mut self, hwnd: windows::Win32::Foundation::HWND) -> anyhow::Result<()> {
-        use windows::Win32::Foundation::*;
-        use windows::Win32::UI::WindowsAndMessaging::*;
-
-        let height = if self.auto_height {
-            let parent = unsafe { GetParent(hwnd) }?;
-            let mut rect = RECT::default();
-            unsafe { GetClientRect(parent, &mut rect) }?;
-            rect.bottom - rect.top
-        } else {
-            self.height
-        };
-
-        let width = if self.auto_width {
-            let child = unsafe { GetWindow(hwnd, GW_CHILD) }?;
-            let mut rect = RECT::default();
-            unsafe { GetClientRect(child, &mut rect) }?;
-            rect.right - rect.left
-        } else {
-            self.width
-        };
-
-        self.width = width;
-        self.height = height;
-
-        unsafe {
-            SetWindowPos(
-                hwnd,
-                None,
-                self.x,
-                self.y,
-                width,
-                height,
-                SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
-            )
-            .map_err(Into::into)
-        }
     }
 }
