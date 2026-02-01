@@ -130,7 +130,6 @@ impl SettingsViewController {
     }
 
     fn create_global_settings_ui(&self) -> Retained<NSStackView> {
-        let mtm = self.mtm();
         let config = self.ivars().config.borrow();
 
         let vstack = self.create_vstack();
