@@ -39,6 +39,7 @@ define_class!(
 pub struct SettingsViewControllerIvars {
     config: RefCell<crate::config::Config>,
     show_layout_button_checkbox: RefCell<Option<Retained<NSButton>>>,
+    hide_empty_workspaces_checkbox: RefCell<Option<Retained<NSButton>>>,
 }
 
 impl SettingsViewControllerIvars {
@@ -46,6 +47,7 @@ impl SettingsViewControllerIvars {
         Self {
             config: RefCell::new(config),
             show_layout_button_checkbox: RefCell::new(None),
+            hide_empty_workspaces_checkbox: RefCell::new(None),
         }
     }
 }
@@ -112,25 +114,35 @@ impl SettingsViewController {
         header
     }
 
-    fn create_global_settings_ui(&self) -> Retained<NSStackView> {
+    fn create_checkbox(&self, title: &str, initial_state: bool) -> Retained<NSButton> {
         let mtm = self.mtm();
-
-        let vstack = self.create_vstack();
 
         let checkbox = NSButton::new(mtm);
         checkbox.setButtonType(NSButtonType::Switch);
-        checkbox.setTitle(&NSString::from_str("Show layout button"));
-
-        let config = self.ivars().config.borrow();
-        checkbox.setState(if config.show_layout_button {
+        checkbox.setTitle(&NSString::from_str(title));
+        checkbox.setState(if initial_state {
             NSControlStateValueOn
         } else {
             NSControlStateValueOff
         });
 
-        vstack.addArrangedSubview(&checkbox);
+        checkbox
+    }
 
-        *self.ivars().show_layout_button_checkbox.borrow_mut() = Some(checkbox);
+    fn create_global_settings_ui(&self) -> Retained<NSStackView> {
+        let mtm = self.mtm();
+        let config = self.ivars().config.borrow();
+
+        let vstack = self.create_vstack();
+
+        let layout = self.create_checkbox("Show layout button", config.show_layout_button);
+        vstack.addArrangedSubview(&layout);
+        *self.ivars().show_layout_button_checkbox.borrow_mut() = Some(layout);
+
+        let label = "Hide empty workspaces";
+        let empty_workspace = self.create_checkbox(label, config.hide_empty_workspaces);
+        vstack.addArrangedSubview(&empty_workspace);
+        *self.ivars().hide_empty_workspaces_checkbox.borrow_mut() = Some(empty_workspace);
 
         vstack
     }
@@ -162,6 +174,14 @@ impl SettingsViewController {
         let mut config = self.ivars().config.borrow_mut();
         if let Some(checkbox) = self.ivars().show_layout_button_checkbox.borrow().as_ref() {
             config.show_layout_button = checkbox.state() == NSControlStateValueOn;
+        }
+        if let Some(checkbox) = self
+            .ivars()
+            .hide_empty_workspaces_checkbox
+            .borrow()
+            .as_ref()
+        {
+            config.hide_empty_workspaces = checkbox.state() == NSControlStateValueOn;
         }
         config.save()?;
         Ok(())

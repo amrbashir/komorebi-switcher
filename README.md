@@ -37,6 +37,7 @@ or use the settings window accessible from the context menu.
 ```toml
 # Global settings
 show_layout_button = false
+hide_empty_workspaces = false
 
 # Settings for each monitor (Windows only for now)
 #   Syntax is [monitors.<id>] where <id> is one of:
@@ -53,6 +54,7 @@ height = 65
 auto_width = true
 auto_height = true
 show_layout_button = false # Can be removed to use the global setting
+hide_empty_workspaces = false # Can be removed to use the global setting
 ```
 
 ## Development
