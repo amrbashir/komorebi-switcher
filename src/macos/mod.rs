@@ -11,39 +11,27 @@ use objc2_app_kit::{
 };
 use objc2_foundation::{
     ns_string, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect,
-    NSSize, NSString,
+    NSSize,
 };
 
-use self::settings_window_controller::SettingsWindowController;
 use self::workspace_button::WorkspaceButton;
 use self::workspaces_stack_view::WorkspacesStackView;
 use crate::config::Config;
 use crate::macos::layout_button::LayoutButton;
+use crate::macos::windows::settings::SettingsWindowController;
 
 mod layout_button;
-mod settings_window_controller;
+mod windows;
 mod workspace_button;
 mod workspaces_stack_view;
 
-#[derive(Debug)]
+#[derive(Default)]
 pub struct AppDelegateIvars {
     ns_status_item: OnceCell<Retained<NSStatusItem>>,
     ns_stack_view: OnceCell<Retained<WorkspacesStackView>>,
     buttons: RefCell<Vec<Retained<NSView>>>,
     config: OnceCell<Config>,
-    settings_window: OnceCell<Retained<SettingsWindowController>>,
-}
-
-impl Default for AppDelegateIvars {
-    fn default() -> Self {
-        Self {
-            ns_status_item: OnceCell::new(),
-            ns_stack_view: OnceCell::new(),
-            buttons: RefCell::new(Vec::new()),
-            config: OnceCell::new(),
-            settings_window: OnceCell::new(),
-        }
-    }
+    settings_window: OnceCell<Retained<windows::settings::SettingsWindowController>>,
 }
 
 define_class!(
@@ -119,16 +107,16 @@ impl AppDelegate {
         }
     }
 
-    fn show_settings_window(&self) {
-        let mtm = self.mtm();
-        let config = self.ivars().config.get().unwrap().clone();
-
-        let window_controller = SettingsWindowController::new(mtm, config);
-
+    fn show_or_create_settings_window(&self) {
         if let Some(existing) = self.ivars().settings_window.get() {
             existing.show();
             return;
         }
+
+        let mtm = self.mtm();
+        let config = self.ivars().config.get().unwrap().clone();
+
+        let window_controller = SettingsWindowController::new(mtm, config);
 
         let _ = self.ivars().settings_window.set(window_controller);
         self.ivars().settings_window.get().unwrap().show();

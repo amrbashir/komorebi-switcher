@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -24,6 +26,7 @@ impl WindowConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
+    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub monitors: HashMap<String, WindowConfig>,
     #[serde(default)]
     pub show_layout_button: bool,
@@ -56,15 +59,17 @@ impl Config {
                 config_file.display()
             );
 
-            let mut config = Config::default();
+            let config = Config::default();
             #[cfg(target_os = "windows")]
             {
                 tracing::info!("Migrating config from Windows registry if any");
 
+                let mut config = config;
                 let migrated = Self::migrate_from_registry()?;
                 config.monitors = migrated;
-                config.save()?;
             }
+
+            config.save()?;
 
             Ok(config)
         }
