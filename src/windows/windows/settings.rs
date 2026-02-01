@@ -85,46 +85,62 @@ impl SettingsWindowView {
             &mut self.config.show_layout_button,
             "Show layout button",
         ));
+
+        ui.add(egui::Checkbox::new(
+            &mut self.config.hide_empty_workspaces,
+            "Hide empty workspaces",
+        ));
     }
 
-    fn layout_button_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
+    fn show_layout_button_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
         let monitor_config = self.config.get_monitor_or_default(monitor_id);
 
         ui.label("Show layout button");
 
-        #[derive(Copy, Clone, PartialEq, strum::Display)]
-        enum ShowLayoutButton {
-            Inherit,
-            Show,
-            Hide,
-        }
-
-        let mut selected = match monitor_config.show_layout_button {
-            None => ShowLayoutButton::Inherit,
-            Some(true) => ShowLayoutButton::Show,
-            Some(false) => ShowLayoutButton::Hide,
-        };
+        let mut selected: ActivationOption = monitor_config.show_layout_button.into();
 
         let before = selected;
 
-        egui::ComboBox::from_label("")
+        egui::ComboBox::new("show_layout_button", "")
             .selected_text(format!("{}", selected))
             .show_ui(ui, |ui| {
                 for option in [
-                    ShowLayoutButton::Inherit,
-                    ShowLayoutButton::Show,
-                    ShowLayoutButton::Hide,
+                    ActivationOption::Inherit,
+                    ActivationOption::Enable,
+                    ActivationOption::Disable,
                 ] {
                     ui.selectable_value(&mut selected, option, format!("{}", option));
                 }
             });
 
         if before != selected {
-            monitor_config.show_layout_button = match selected {
-                ShowLayoutButton::Inherit => None,
-                ShowLayoutButton::Show => Some(true),
-                ShowLayoutButton::Hide => Some(false),
-            };
+            monitor_config.show_layout_button = selected.into();
+        }
+    }
+
+    fn hide_empty_workspaces_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
+        let monitor_config = self.config.get_monitor_or_default(monitor_id);
+
+        ui.label("Hide empty workspaces");
+
+        let mut selected: ActivationOption = monitor_config.hide_empty_workspaces.into();
+
+        let before = selected;
+
+        egui::ComboBox::new("hide_empty_workspaces", "")
+            .selected_text(format!("{}", selected))
+            .show_ui(ui, |ui| {
+                for option in [
+                    ActivationOption::Inherit,
+                    ActivationOption::Enable,
+                    ActivationOption::Disable,
+                ] {
+                    ui.selectable_value(&mut selected, option, format!("{}", option));
+                }
+            });
+
+        if before != selected {
+            monitor_config.hide_empty_workspaces = selected.into();
         }
     }
 
@@ -159,7 +175,10 @@ impl SettingsWindowView {
         });
         ui.end_row();
 
-        self.layout_button_ui(ui, monitor_id);
+        self.show_layout_button_ui(ui, monitor_id);
+        ui.end_row();
+
+        self.hide_empty_workspaces_ui(ui, monitor_id);
         ui.end_row();
     }
 
@@ -225,5 +244,33 @@ impl EguiView for SettingsWindowView {
 
     fn update(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| self.ui(ui));
+    }
+}
+
+/// Represents an activation option for a setting: Inherit, Enable, or Disable.
+#[derive(Copy, Clone, PartialEq, strum::Display)]
+enum ActivationOption {
+    Inherit,
+    Enable,
+    Disable,
+}
+
+impl From<ActivationOption> for Option<bool> {
+    fn from(option: ActivationOption) -> Self {
+        match option {
+            ActivationOption::Inherit => None,
+            ActivationOption::Enable => Some(false),
+            ActivationOption::Disable => Some(true),
+        }
+    }
+}
+
+impl From<Option<bool>> for ActivationOption {
+    fn from(option: Option<bool>) -> Self {
+        match option {
+            None => ActivationOption::Inherit,
+            Some(true) => ActivationOption::Disable,
+            Some(false) => ActivationOption::Enable,
+        }
     }
 }

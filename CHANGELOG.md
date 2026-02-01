@@ -6,16 +6,17 @@
 
 - Added new config at `~/.config/komorebi-switcher.toml`
 - Added new "Settings" menu item in Right click menu and tray icon.
-- Added button to show active workspace layout and click to cycle through available layouts (Enable it through Settings or config).
+- Added `show_layout_button` option to show a button for active workspace layout, click to cycle through available layouts.
+- Added `hide_empty_workspaces` option to hide empty workspaces from the switcher.
 
 ### Changed
 
-- Migrated config options stored in Windows Registry to the new TOML config.
-- Active workspace indicator will no longer appear on top of the switcher button and will always be at the bottom of it.
+- **Windows** Migrated config options stored in Windows Registry to the new TOML config.
+- **Windows** Active workspace indicator will no longer appear on top of the switcher button and will always be at the bottom of it.
 
 ### Removed
 
-- Removed "Move and Resize" menu items from Right click menu and tray icon.
+- **Windows** Removed "Move and Resize" menu items from Right click menu and tray icon. Use the new "Settings" menu item.
 
 ## [0.9.2] - 2026-01-06
 

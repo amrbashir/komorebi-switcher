@@ -139,6 +139,10 @@ impl AppDelegate {
         };
 
         for workspace in &monitor.workspaces {
+            if config.hide_empty_workspaces && workspace.is_empty && !workspace.focused {
+                continue;
+            }
+
             let workspace_button = WorkspaceButton::new(mtm, workspace);
             stack_view.addArrangedSubview(&workspace_button);
             views.push(workspace_button.downcast().unwrap());

@@ -224,8 +224,19 @@ impl SwitcherWindowView {
             ui.scope(|ui| {
                 ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
 
+                let config = self.effective_config();
+                let monitor_config = config.get_monitor(&self.monitor_state.id);
+                let hide_empty_workspaces = match monitor_config.hide_empty_workspaces {
+                    Some(hide) => hide,
+                    None => config.hide_empty_workspaces,
+                };
+
                 // show workspace buttons
                 for workspace in self.monitor_state.workspaces.iter() {
+                    if hide_empty_workspaces && workspace.is_empty && !workspace.focused {
+                        continue;
+                    }
+
                     let btn = WorkspaceButton::new(workspace)
                         .dark_mode(Some(self.is_system_dark_mode()))
                         .line_focused_color_opt(self.line_focused_color())
@@ -240,8 +251,6 @@ impl SwitcherWindowView {
                 }
 
                 // show layout button for focused workspace
-                let config = self.effective_config();
-                let monitor_config = config.get_monitor(&self.monitor_state.id);
                 let show_layout_button = match monitor_config.show_layout_button {
                     Some(show) => show,
                     None => config.show_layout_button,

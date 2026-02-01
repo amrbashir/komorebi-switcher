@@ -14,6 +14,8 @@ pub struct WindowConfig {
     pub auto_height: bool,
     #[serde(default)]
     pub show_layout_button: Option<bool>,
+    #[serde(default)]
+    pub hide_empty_workspaces: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -23,6 +25,9 @@ pub struct Config {
 
     #[serde(default)]
     pub show_layout_button: bool,
+
+    #[serde(default)]
+    pub hide_empty_workspaces: bool,
 }
 
 impl Config {
@@ -139,6 +144,7 @@ impl Config {
                     auto_width,
                     auto_height,
                     show_layout_button: None,
+                    hide_empty_workspaces: None,
                 },
             );
         }
