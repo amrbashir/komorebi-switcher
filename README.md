@@ -29,6 +29,32 @@ Or using Homebrew (macOS):
 brew install amrbashir/tap/komorebi-switcher
 ```
 
+## Config
+
+The config is located at `~/.config/komorebi-switcher.toml`. You can edit this file directly
+or use the settings window accessible from the context menu.
+
+```toml
+# Global settings
+show_layout_button = false
+
+# Settings for each monitor (Windows only for now)
+#   Syntax is [monitors.<id>] where <id> is one of:
+#     - serial_number_id
+#     - device_id
+#     - name
+#   The app will try to match in the above order, depending on what info is available,
+#   Run `komorebic monitor-information` to get info about your monitors
+[monitors.0]
+x = 378
+y = 1
+width = 402
+height = 65
+auto_width = true
+auto_height = true
+show_layout_button = false # Can be removed to use the global setting
+```
+
 ## Development
 
 1. Install [Rust](https://rustup.rs/)
