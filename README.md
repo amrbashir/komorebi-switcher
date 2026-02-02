@@ -36,7 +36,7 @@ or use the settings window accessible from the context menu.
 
 ```toml
 # Global settings
-show_layout_button = false
+show_layout_button    = false
 hide_empty_workspaces = false
 
 # Settings for each monitor (Windows only for now)
@@ -47,14 +47,14 @@ hide_empty_workspaces = false
 #   The app will try to match in the above order, depending on what info is available,
 #   Run `komorebic monitor-information` to get info about your monitors
 [monitors.0]
-x = 378
-y = 1
-width = 402
-height = 65
-auto_width = true
-auto_height = true
-show_layout_button = false # Can be removed to use the global setting
-hide_empty_workspaces = false # Can be removed to use the global setting
+show_layout_button    = false    # Can be removed to use the global setting
+hide_empty_workspaces = false    # Can be removed to use the global setting
+auto_width            = true
+auto_height           = true
+x                     = 0
+y                     = 0
+width                 = 200      # Ignored if `auto_width` is enabled
+height                = 40       # Ignored if `auto_height` is enabled
 ```
 
 ## Development

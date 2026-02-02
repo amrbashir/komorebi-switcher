@@ -259,8 +259,8 @@ impl From<ActivationOption> for Option<bool> {
     fn from(option: ActivationOption) -> Self {
         match option {
             ActivationOption::Inherit => None,
-            ActivationOption::Enable => Some(false),
-            ActivationOption::Disable => Some(true),
+            ActivationOption::Enable => Some(true),
+            ActivationOption::Disable => Some(false),
         }
     }
 }
@@ -269,8 +269,8 @@ impl From<Option<bool>> for ActivationOption {
     fn from(option: Option<bool>) -> Self {
         match option {
             None => ActivationOption::Inherit,
-            Some(true) => ActivationOption::Disable,
-            Some(false) => ActivationOption::Enable,
+            Some(true) => ActivationOption::Enable,
+            Some(false) => ActivationOption::Disable,
         }
     }
 }

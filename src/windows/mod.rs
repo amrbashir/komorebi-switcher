@@ -6,6 +6,7 @@ mod app;
 mod context_menu;
 mod egui_glue;
 mod message_window;
+mod registry;
 mod taskbar;
 mod tray_icon;
 mod utils;

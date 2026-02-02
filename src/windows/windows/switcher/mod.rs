@@ -12,11 +12,12 @@ use winit::event_loop::ActiveEventLoop;
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::WindowAttributes;
 
-use crate::config::{Config, WindowConfig};
+use crate::config::Config;
 use crate::komorebi::CycleDirection;
 use crate::windows::app::{App, AppMessage};
 use crate::windows::context_menu::AppContextMenu;
 use crate::windows::egui_glue::{EguiView, EguiWindow};
+use crate::windows::registry;
 use crate::windows::taskbar::Taskbar;
 use crate::windows::widgets::{LayoutButton, WorkspaceButton};
 
@@ -30,15 +31,20 @@ impl App {
         monitor_state: crate::komorebi::Monitor,
         context_menu: AppContextMenu,
     ) -> anyhow::Result<EguiWindow> {
-        let window_info = {
+        let monitor_config = {
             let config = self.config.read().unwrap();
-            config.get_monitor(&monitor_state.id)
+            let mut monitor_config = config.get_monitor(&monitor_state.id);
+            monitor_config.adjust_for_auto_size(&monitor_state.id)?;
+            monitor_config
         };
 
-        let host = unsafe { host::create_host(taskbar.hwnd, self.proxy.clone(), &window_info) }?;
+        let host = unsafe { host::create_host(taskbar.hwnd, self.proxy.clone(), &monitor_config) }?;
 
         let mut attrs = WindowAttributes::default();
-        attrs = attrs.with_inner_size(PhysicalSize::new(window_info.width, window_info.height));
+        attrs = attrs.with_inner_size(PhysicalSize::new(
+            monitor_config.width,
+            monitor_config.height,
+        ));
 
         let parent = unsafe { NonZero::new_unchecked(host.0 as _) };
         let parent = Win32WindowHandle::new(parent);
@@ -88,6 +94,7 @@ pub struct SwitcherWindowView {
     accent_light2_color: Option<egui::Color32>,
     accent_color: Option<egui::Color32>,
     forgreound_color: Option<egui::Color32>,
+    prev_bounds: Option<egui::Rect>,
 }
 
 impl SwitcherWindowView {
@@ -108,6 +115,7 @@ impl SwitcherWindowView {
             forgreound_color: None,
             config,
             preview_config: None,
+            prev_bounds: None,
         };
 
         if let Err(e) = view.update_system_colors() {
@@ -164,36 +172,55 @@ impl SwitcherWindowView {
 
     fn resize_host_to_rect(&mut self, rect: egui::Rect, ppp: f32) -> anyhow::Result<()> {
         let config = self.effective_config();
-        let mut window_info = config.get_monitor(&self.monitor_state.id);
+        let monitor_config = config.get_monitor(&self.monitor_state.id);
 
+        // Add margins to rect and scale by ppp
         let rect = rect + Self::WORKSPACES_MARGIN;
         let rect = rect * ppp;
 
-        let height = if window_info.auto_height {
+        let x = monitor_config.x;
+        let y = monitor_config.y;
+
+        let height = if monitor_config.auto_height {
             self.taskbar_height()?
         } else {
-            window_info.height
+            monitor_config.height
         };
 
-        let width = if window_info.auto_width {
+        let width = if monitor_config.auto_width {
             rect.width() as i32
         } else {
-            window_info.width
+            monitor_config.width
         };
 
-        let curr_width = window_info.width;
-        let curr_height = window_info.height;
+        let current_bounds = egui::Rect::from_min_size(
+            egui::pos2(x as f32, y as f32),
+            egui::vec2(width as f32, height as f32),
+        );
 
-        if curr_width != width || curr_height != height {
-            window_info.width = width;
-            window_info.height = height;
-
+        // If bounds changed, resize host window
+        if self.prev_bounds != Some(current_bounds) {
             tracing::debug!("Resizing host to match content rect");
 
-            let mut config = self.config.write().unwrap();
-            config.set_monitor(&self.monitor_state.id, window_info);
-            config.save()?;
-            unsafe { SetWindowPos(self.host, None, 0, 0, width, height, SWP_NOMOVE) }?;
+            unsafe {
+                SetWindowPos(
+                    self.host,
+                    None,
+                    x,
+                    y,
+                    width,
+                    height,
+                    SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+                )
+            }?;
+
+            // Store auto size if needed
+            if monitor_config.auto_width || monitor_config.auto_height {
+                let _ = registry::store_auto_size(&self.monitor_state.id, width, height);
+            }
+
+            // Update previous bounds, to avoid redundant resizes next time
+            self.prev_bounds = Some(current_bounds);
         }
 
         Ok(())
@@ -286,41 +313,6 @@ impl SwitcherWindowView {
     }
 }
 
-impl WindowConfig {
-    pub fn apply_bounds_to(&self, hwnd: windows::Win32::Foundation::HWND) -> anyhow::Result<()> {
-        let height = if self.auto_height {
-            let parent = unsafe { GetParent(hwnd) }?;
-            let mut rect = RECT::default();
-            unsafe { GetClientRect(parent, &mut rect) }?;
-            rect.bottom - rect.top
-        } else {
-            self.height
-        };
-
-        let width = if self.auto_width {
-            let child = unsafe { GetWindow(hwnd, GW_CHILD) }?;
-            let mut rect = RECT::default();
-            unsafe { GetClientRect(child, &mut rect) }?;
-            rect.right - rect.left
-        } else {
-            self.width
-        };
-
-        unsafe {
-            SetWindowPos(
-                hwnd,
-                None,
-                self.x,
-                self.y,
-                width,
-                height,
-                SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
-            )
-            .map_err(Into::into)
-        }
-    }
-}
-
 impl EguiView for SwitcherWindowView {
     fn handle_app_message(
         &mut self,
@@ -338,17 +330,9 @@ impl EguiView for SwitcherWindowView {
                     .unwrap_or_default();
             }
 
-            AppMessage::PreviewConfig(config) => {
-                self.preview_config = Some(config.clone());
+            AppMessage::PreviewConfig(config) => self.preview_config = Some(config.clone()),
 
-                let monitor_config = config.get_monitor(&self.monitor_state.id);
-                monitor_config.apply_bounds_to(self.host)?;
-            }
-
-            AppMessage::ClearPreviewConfig => {
-                self.preview_config = None;
-            }
-
+            AppMessage::ClearPreviewConfig => self.preview_config = None,
             AppMessage::SystemSettingsChanged => self.update_system_colors()?,
 
             AppMessage::DpiChanged => {
@@ -366,11 +350,6 @@ impl EguiView for SwitcherWindowView {
     fn update(&mut self, ctx: &egui::Context) {
         self.transparent_panel(ctx).show(ctx, |ui| {
             let response = self.workspaces_row(ui);
-
-            // Skip resizing if we are in preview mode, to avoid infinite resize loop
-            if self.preview_config.is_some() {
-                return;
-            }
 
             if let Err(e) = self.resize_host_to_rect(response.rect, ctx.pixels_per_point()) {
                 tracing::error!("Failed to resize host to rect: {e}");

@@ -4,30 +4,46 @@ use std::path::PathBuf;
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
+fn default_width() -> i32 {
+    200
+}
+
+fn default_height() -> i32 {
+    40
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
-pub struct WindowConfig {
-    pub x: i32,
-    pub y: i32,
-    pub width: i32,
-    pub height: i32,
-    pub auto_width: bool,
-    pub auto_height: bool,
+pub struct MonitorConfig {
     #[serde(default)]
     pub show_layout_button: Option<bool>,
     #[serde(default)]
     pub hide_empty_workspaces: Option<bool>,
+
+    #[serde(default = "default_true")]
+    pub auto_width: bool,
+    #[serde(default = "default_true")]
+    pub auto_height: bool,
+
+    #[serde(default)]
+    pub x: i32,
+    #[serde(default)]
+    pub y: i32,
+
+    #[serde(default = "default_width")]
+    pub width: i32,
+    #[serde(default = "default_height")]
+    pub height: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
-    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
-    pub monitors: HashMap<String, WindowConfig>,
-
     #[serde(default)]
     pub show_layout_button: bool,
-
     #[serde(default)]
     pub hide_empty_workspaces: bool,
+
+    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
+    pub monitors: HashMap<String, MonitorConfig>,
 }
 
 impl Config {
@@ -87,68 +103,21 @@ impl Config {
     }
 
     #[allow(dead_code)]
-    pub fn get_monitor(&self, monitor_id: &str) -> WindowConfig {
+    pub fn get_monitor(&self, monitor_id: &str) -> MonitorConfig {
         self.monitors.get(monitor_id).copied().unwrap_or_default()
     }
 
     #[allow(dead_code)]
-    pub fn get_monitor_or_default(&mut self, monitor_id: &str) -> &mut WindowConfig {
+    pub fn get_monitor_or_default(&mut self, monitor_id: &str) -> &mut MonitorConfig {
         self.monitors.entry(monitor_id.to_string()).or_default()
     }
 
     #[allow(dead_code)]
-    pub fn set_monitor(&mut self, monitor_id: &str, config: WindowConfig) {
+    pub fn set_monitor(&mut self, monitor_id: &str, config: MonitorConfig) {
         self.monitors.insert(monitor_id.to_string(), config);
     }
 }
 
-#[cfg(target_os = "windows")]
-impl Config {
-    fn migrate_from_registry() -> anyhow::Result<HashMap<String, WindowConfig>> {
-        use windows_registry::CURRENT_USER;
-
-        #[cfg(debug_assertions)]
-        const APP_REG_KEY: &str = "SOFTWARE\\amrbashir\\komorebi-switcher-debug";
-        #[cfg(not(debug_assertions))]
-        const APP_REG_KEY: &str = "SOFTWARE\\amrbashir\\komorebi-switcher";
-
-        let key = CURRENT_USER.create(APP_REG_KEY)?;
-        let subkeys: Vec<String> = key.keys()?.collect();
-
-        let mut monitors = HashMap::new();
-        for monitor_id in subkeys {
-            let subkey = key.open(&monitor_id)?;
-
-            #[inline]
-            fn get_int(k: &windows_registry::Key, key: &str, default: i32) -> i32 {
-                k.get_string(key)
-                    .map_err(|e| anyhow::anyhow!(e))
-                    .and_then(|v| v.parse::<i32>().map_err(Into::into))
-                    .unwrap_or(default)
-            }
-
-            let x = get_int(&subkey, "window-pos-x", 0);
-            let y = get_int(&subkey, "window-pos-y", 0);
-            let width = get_int(&subkey, "window-size-width", 200);
-            let height = get_int(&subkey, "window-size-height", 40);
-            let auto_width = subkey.get_u32("window-size-auto-width").unwrap_or(1) != 0;
-            let auto_height = subkey.get_u32("window-size-auto-height").unwrap_or(1) != 0;
-
-            monitors.insert(
-                monitor_id,
-                WindowConfig {
-                    x,
-                    y,
-                    width,
-                    height,
-                    auto_width,
-                    auto_height,
-                    show_layout_button: None,
-                    hide_empty_workspaces: None,
-                },
-            );
-        }
-
-        Ok(monitors)
-    }
+fn default_true() -> bool {
+    true
 }

@@ -4,7 +4,7 @@ use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use winit::event_loop::EventLoopProxy;
 
-use crate::config::WindowConfig;
+use crate::config::MonitorConfig;
 use crate::windows::app::AppMessage;
 use crate::windows::utils;
 
@@ -16,7 +16,7 @@ const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher::host");
 pub unsafe fn create_host(
     taskbar_hwnd: HWND,
     proxy: EventLoopProxy<AppMessage>,
-    window_info: &WindowConfig,
+    monitor_config: &MonitorConfig,
 ) -> anyhow::Result<HWND> {
     let hinstance = unsafe { GetModuleHandleW(None) }?;
 
@@ -35,10 +35,10 @@ pub unsafe fn create_host(
 
     let userdata = WndProcUserData { proxy };
 
-    let height = if window_info.auto_height {
+    let height = if monitor_config.auto_height {
         rect.bottom - rect.top
     } else {
-        window_info.height
+        monitor_config.height
     };
 
     let hwnd = CreateWindowExW(
@@ -46,9 +46,9 @@ pub unsafe fn create_host(
         HOST_CLASSNAME,
         PCWSTR::null(),
         WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
-        window_info.x,
-        window_info.y,
-        window_info.width,
+        monitor_config.x,
+        monitor_config.y,
+        monitor_config.width,
         height,
         Some(taskbar_hwnd),
         None,
