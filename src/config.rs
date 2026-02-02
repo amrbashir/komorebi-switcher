@@ -14,9 +14,9 @@ fn default_height() -> i32 {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub struct MonitorConfig {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub show_layout_button: Option<bool>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hide_empty_workspaces: Option<bool>,
 
     #[serde(default = "default_true")]
