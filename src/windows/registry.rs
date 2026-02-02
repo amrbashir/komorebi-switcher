@@ -76,7 +76,7 @@ const WINDOW_SIZE_LAST_WIDTH: &str = "window-size-last-width";
 const WINDOW_SIZE_LAST_HEIGHT: &str = "window-size-last-height";
 
 fn get_auto_size(monitor_id: &str) -> Option<(i32, i32)> {
-    let key = CURRENT_USER.open(format!("{APP_REG_KEY}\\monitors\\{}", monitor_id));
+    let key = CURRENT_USER.open(format!("{APP_REG_KEY}\\{monitor_id}"));
 
     let key = match key {
         Ok(key) => key,
@@ -91,7 +91,7 @@ fn get_auto_size(monitor_id: &str) -> Option<(i32, i32)> {
 
 pub fn store_auto_size(monitor_id: &str, width: i32, height: i32) -> anyhow::Result<()> {
     let key = CURRENT_USER
-        .create(format!("{APP_REG_KEY}\\monitors\\{}", monitor_id))
+        .create(format!("{APP_REG_KEY}\\{monitor_id}"))
         .context("failed to open registry key")?;
 
     key.set_u32(WINDOW_SIZE_LAST_WIDTH, width as u32)?;

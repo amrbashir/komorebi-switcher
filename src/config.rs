@@ -12,7 +12,7 @@ fn default_height() -> i32 {
     40
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct MonitorConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub show_layout_button: Option<bool>,
@@ -33,6 +33,21 @@ pub struct MonitorConfig {
     pub width: i32,
     #[serde(default = "default_height")]
     pub height: i32,
+}
+
+impl Default for MonitorConfig {
+    fn default() -> Self {
+        Self {
+            show_layout_button: None,
+            hide_empty_workspaces: None,
+            auto_width: true,
+            auto_height: true,
+            x: 0,
+            y: 0,
+            width: default_width(),
+            height: default_height(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -81,10 +96,11 @@ impl Config {
                 tracing::info!("Migrating config from Windows registry if any");
 
                 let migrated = Self::migrate_from_registry()?;
-                config.monitors = migrated;
+                if !migrated.is_empty() {
+                    config.monitors = migrated;
+                    config.save()?;
+                }
             }
-
-            config.save()?;
 
             Ok(config)
         }
