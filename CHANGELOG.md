@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-02-02
+
 ### Added
 
 - Added new config at `~/.config/komorebi-switcher.toml`
