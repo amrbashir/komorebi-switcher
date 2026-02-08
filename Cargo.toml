@@ -2,7 +2,7 @@
 name = "komorebi-switcher"
 version = "0.10.0"
 description = "A minimal workspace switcher for the Komorebi tiling window manager, seamlessly integrated into Windows 10/11 taskbar or macOS menu bar."
-authors = ["Amr Bashir <contact@amrbashir.me>"]
+authors = ["Amr Bashir <amr.bashir2015@gmail.com>"]
 edition = "2021"
 license = "MIT"
 
