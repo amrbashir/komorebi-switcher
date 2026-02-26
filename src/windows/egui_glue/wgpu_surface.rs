@@ -37,7 +37,9 @@ impl WgpuSurface {
             .await
             .context("Failed to find an appropriate adapter")?;
 
-        let (width, height) = window.inner_size().into();
+        let size = window.inner_size();
+        let width = size.width.max(1);
+        let height = size.height.max(1);
 
         let (device, queue) = adapter
             .request_device(

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed a crash caused by wgpu requiring a surface with non 0x0 dimensions
+
 ## [0.10.0] - 2026-02-02
 
 ### Added
