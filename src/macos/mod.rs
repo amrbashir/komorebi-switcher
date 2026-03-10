@@ -185,23 +185,24 @@ impl AppDelegate {
     }
 }
 
-/// Use fontdb to lazily look up the PostScript name for a given family+weight,
-/// then create an NSFont from it. Returns None if the font cannot be found.
+/// Use font-kit to look up the PostScript name for a given family+weight via the
+/// system's native font APIs, then create an NSFont from it. Returns None if
+/// the font cannot be found.
 fn resolve_ns_font(family: &str, weight: u16, size: f64) -> Option<Retained<NSFont>> {
-    let postscript_name = {
-        let mut db = fontdb::Database::new();
-        db.load_system_fonts();
+    use font_kit::family_name::FamilyName;
+    use font_kit::properties::{Properties, Weight};
+    use font_kit::source::SystemSource;
 
-        let query = fontdb::Query {
-            families: &[fontdb::Family::Name(family)],
-            weight: fontdb::Weight(weight),
-            ..Default::default()
-        };
-
-        let id = db.query(&query)?;
-        db.face(id).map(|f| f.post_script_name.clone())?
+    let source = SystemSource::new();
+    let properties = Properties {
+        weight: Weight(weight as f32),
+        ..Default::default()
     };
-
+    let handle = source
+        .select_best_match(&[FamilyName::Title(family.to_string())], &properties)
+        .ok()?;
+    let font = handle.load().ok()?;
+    let postscript_name = font.postscript_name()?;
     NSFont::fontWithName_size(&NSString::from_str(&postscript_name), size)
 }
 

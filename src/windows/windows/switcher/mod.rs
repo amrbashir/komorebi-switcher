@@ -24,17 +24,20 @@ use crate::windows::widgets::{LayoutButton, WorkspaceButton};
 mod host;
 
 fn load_font_data(family: &str, weight: u16) -> Option<Vec<u8>> {
-    let mut db = fontdb::Database::new();
-    db.load_system_fonts();
+    use font_kit::family_name::FamilyName;
+    use font_kit::properties::{Properties, Weight};
+    use font_kit::source::SystemSource;
 
-    let query = fontdb::Query {
-        families: &[fontdb::Family::Name(family)],
-        weight: fontdb::Weight(weight),
+    let source = SystemSource::new();
+    let properties = Properties {
+        weight: Weight(weight as f32),
         ..Default::default()
     };
-
-    let id = db.query(&query)?;
-    db.with_face_data(id, |data, _| data.to_vec())
+    let handle = source
+        .select_best_match(&[FamilyName::Title(family.to_string())], &properties)
+        .ok()?;
+    let font = handle.load().ok()?;
+    font.copy_font_data().map(|arc| arc.to_vec())
 }
 
 impl App {
