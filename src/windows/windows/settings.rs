@@ -5,7 +5,7 @@ use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::{WindowAttributes, WindowId};
 
-use crate::config::{Config, FontWeight};
+use crate::config::Config;
 use crate::komorebi::State;
 use crate::windows::app::{App, AppMessage};
 use crate::windows::egui_glue::{EguiView, EguiWindow};
@@ -93,29 +93,34 @@ impl SettingsWindowView {
 
         ui.separator();
 
-        ui.label("Font Family");
-        let mut font_family = self.config.font_family.clone().unwrap_or_default();
-        if ui.text_edit_singleline(&mut font_family).changed() {
-            self.config.font_family = if font_family.is_empty() {
-                None
+        ui.label("Font File");
+        ui.horizontal(|ui| {
+            let font_path_str = self
+                .config
+                .font_file
+                .as_deref()
+                .and_then(|p| p.to_str())
+                .unwrap_or("")
+                .to_string();
+            ui.label(if font_path_str.is_empty() {
+                "None".to_string()
             } else {
-                Some(font_family)
-            };
-        }
-
-        ui.label("Font Weight");
-        let mut font_weight = self.config.font_weight.unwrap_or_default();
-        let before = font_weight;
-        egui::ComboBox::new("font_weight", "")
-            .selected_text(format!("{font_weight}"))
-            .show_ui(ui, |ui| {
-                for option in [FontWeight::Normal, FontWeight::Bold] {
-                    ui.selectable_value(&mut font_weight, option, format!("{option}"));
-                }
+                font_path_str
             });
-        if font_weight != before {
-            self.config.font_weight = Some(font_weight);
-        }
+
+            if ui.button("Browse…").clicked() {
+                if let Some(path) = rfd::FileDialog::new()
+                    .add_filter("Font files", &["ttf", "otf", "ttc", "otc"])
+                    .pick_file()
+                {
+                    self.config.font_file = Some(path);
+                }
+            }
+
+            if self.config.font_file.is_some() && ui.button("Clear").clicked() {
+                self.config.font_file = None;
+            }
+        });
     }
 
     fn show_layout_button_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {

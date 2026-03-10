@@ -12,7 +12,7 @@ use winit::event_loop::ActiveEventLoop;
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::WindowAttributes;
 
-use crate::config::{Config, FontWeight};
+use crate::config::Config;
 use crate::komorebi::CycleDirection;
 use crate::windows::app::{App, AppMessage};
 use crate::windows::context_menu::AppContextMenu;
@@ -22,25 +22,6 @@ use crate::windows::taskbar::Taskbar;
 use crate::windows::widgets::{LayoutButton, WorkspaceButton};
 
 mod host;
-
-fn load_font_data(family: &str, weight: FontWeight) -> Option<Vec<u8>> {
-    let mut db = fontdb::Database::new();
-    db.load_system_fonts();
-
-    let weight = match weight {
-        FontWeight::Normal => fontdb::Weight::NORMAL,
-        FontWeight::Bold => fontdb::Weight::BOLD,
-    };
-
-    let query = fontdb::Query {
-        families: &[fontdb::Family::Name(family)],
-        weight,
-        ..Default::default()
-    };
-
-    let id = db.query(&query)?;
-    db.with_face_data(id, |data, _| data.to_vec())
-}
 
 fn apply_font_to_context(ctx: &egui::Context, font_data: Vec<u8>) {
     let mut fonts = egui::FontDefinitions::default();
@@ -128,7 +109,7 @@ pub struct SwitcherWindowView {
     accent_color: Option<egui::Color32>,
     forgreound_color: Option<egui::Color32>,
     prev_bounds: Option<egui::Rect>,
-    applied_font: Option<(String, FontWeight)>,
+    applied_font: Option<std::path::PathBuf>,
 }
 
 impl SwitcherWindowView {
@@ -262,10 +243,7 @@ impl SwitcherWindowView {
     }
 
     fn maybe_apply_font(&mut self, ctx: &egui::Context, config: &Config) {
-        let desired = config
-            .font_family
-            .as_deref()
-            .map(|family| (family.to_string(), config.font_weight.unwrap_or_default()));
+        let desired = config.font_file.clone();
 
         if self.applied_font == desired {
             return;
@@ -274,11 +252,12 @@ impl SwitcherWindowView {
         self.applied_font = desired.clone();
 
         match desired {
-            Some((family, weight)) => match load_font_data(&family, weight) {
-                Some(data) => apply_font_to_context(ctx, data),
-                None => {
+            Some(path) => match std::fs::read(&path) {
+                Ok(data) => apply_font_to_context(ctx, data),
+                Err(e) => {
                     tracing::warn!(
-                        "Font '{family}' with weight {weight} not found, falling back to default font"
+                        "Failed to read font file '{}': {e}, falling back to default font",
+                        path.display()
                     );
                     ctx.set_fonts(egui::FontDefinitions::default());
                 }
