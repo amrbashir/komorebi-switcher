@@ -5,7 +5,7 @@ use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::{WindowAttributes, WindowId};
 
-use crate::config::Config;
+use crate::config::{Config, FontWeight};
 use crate::komorebi::State;
 use crate::windows::app::{App, AppMessage};
 use crate::windows::egui_glue::{EguiView, EguiWindow};
@@ -90,6 +90,32 @@ impl SettingsWindowView {
             &mut self.config.hide_empty_workspaces,
             "Hide empty workspaces",
         ));
+
+        ui.separator();
+
+        ui.label("Font Family");
+        let mut font_family = self.config.font_family.clone().unwrap_or_default();
+        if ui.text_edit_singleline(&mut font_family).changed() {
+            self.config.font_family = if font_family.is_empty() {
+                None
+            } else {
+                Some(font_family)
+            };
+        }
+
+        ui.label("Font Weight");
+        let mut font_weight = self.config.font_weight.unwrap_or_default();
+        let before = font_weight;
+        egui::ComboBox::new("font_weight", "")
+            .selected_text(format!("{font_weight}"))
+            .show_ui(ui, |ui| {
+                for option in [FontWeight::Normal, FontWeight::Bold] {
+                    ui.selectable_value(&mut font_weight, option, format!("{option}"));
+                }
+            });
+        if font_weight != before {
+            self.config.font_weight = Some(font_weight);
+        }
     }
 
     fn show_layout_button_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {

@@ -12,6 +12,14 @@ fn default_height() -> i32 {
     40
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, strum::Display)]
+#[strum(serialize_all = "title_case")]
+pub enum FontWeight {
+    #[default]
+    Normal,
+    Bold,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct MonitorConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -56,6 +64,11 @@ pub struct Config {
     pub show_layout_button: bool,
     #[serde(default)]
     pub hide_empty_workspaces: bool,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub font_family: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub font_weight: Option<FontWeight>,
 
     #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub monitors: HashMap<String, MonitorConfig>,
