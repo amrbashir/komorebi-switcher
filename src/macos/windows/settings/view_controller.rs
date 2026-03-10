@@ -78,9 +78,6 @@ impl SettingsViewController {
         main_stack.addArrangedSubview(&self.create_header("Global Settings"));
         main_stack.addArrangedSubview(&self.create_global_settings_ui());
         main_stack.addArrangedSubview(&self.create_separator());
-        main_stack.addArrangedSubview(&self.create_header("Font"));
-        main_stack.addArrangedSubview(&self.create_font_settings_ui());
-        main_stack.addArrangedSubview(&self.create_separator());
         main_stack.addArrangedSubview(&self.create_action_buttons_ui());
 
         self.setView(&main_stack);
@@ -150,22 +147,6 @@ impl SettingsViewController {
         vstack.addArrangedSubview(&empty_workspace);
         *self.ivars().hide_empty_workspaces_checkbox.borrow_mut() = Some(empty_workspace);
 
-        vstack
-    }
-
-    fn create_text_field(&self, placeholder: &str, initial_value: &str) -> Retained<NSTextField> {
-        let mtm = self.mtm();
-        let field = NSTextField::initWithFrame(NSTextField::alloc(mtm), Default::default());
-        field.setPlaceholderString(Some(&NSString::from_str(placeholder)));
-        field.setStringValue(&NSString::from_str(initial_value));
-        field
-    }
-
-    fn create_font_settings_ui(&self) -> Retained<NSStackView> {
-        let config = self.ivars().config.borrow();
-
-        let vstack = self.create_vstack();
-
         // Font family row
         let family_row = self.create_hstack();
         let family_label =
@@ -189,6 +170,14 @@ impl SettingsViewController {
         *self.ivars().font_weight_field.borrow_mut() = Some(weight_field);
 
         vstack
+    }
+
+    fn create_text_field(&self, placeholder: &str, initial_value: &str) -> Retained<NSTextField> {
+        let mtm = self.mtm();
+        let field = NSTextField::initWithFrame(NSTextField::alloc(mtm), Default::default());
+        field.setPlaceholderString(Some(&NSString::from_str(placeholder)));
+        field.setStringValue(&NSString::from_str(initial_value));
+        field
     }
 
     fn create_action_button(&self, title: &str, action: Sel) -> Retained<NSButton> {

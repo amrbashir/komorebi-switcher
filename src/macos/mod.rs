@@ -189,20 +189,7 @@ impl AppDelegate {
 /// system's native font APIs, then create an NSFont from it. Returns None if
 /// the font cannot be found.
 fn resolve_ns_font(family: &str, weight: u16, size: f64) -> Option<Retained<NSFont>> {
-    use font_kit::family_name::FamilyName;
-    use font_kit::properties::{Properties, Weight};
-    use font_kit::source::SystemSource;
-
-    let source = SystemSource::new();
-    let properties = Properties {
-        weight: Weight(weight as f32),
-        ..Default::default()
-    };
-    let handle = source
-        .select_best_match(&[FamilyName::Title(family.to_string())], &properties)
-        .ok()?;
-    let font = handle.load().ok()?;
-    let postscript_name = font.postscript_name()?;
+    let postscript_name = crate::utils::find_font(family, weight)?.postscript_name()?;
     NSFont::fontWithName_size(&NSString::from_str(&postscript_name), size)
 }
 

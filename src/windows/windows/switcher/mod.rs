@@ -24,20 +24,9 @@ use crate::windows::widgets::{LayoutButton, WorkspaceButton};
 mod host;
 
 fn load_font_data(family: &str, weight: u16) -> Option<Vec<u8>> {
-    use font_kit::family_name::FamilyName;
-    use font_kit::properties::{Properties, Weight};
-    use font_kit::source::SystemSource;
-
-    let source = SystemSource::new();
-    let properties = Properties {
-        weight: Weight(weight as f32),
-        ..Default::default()
-    };
-    let handle = source
-        .select_best_match(&[FamilyName::Title(family.to_string())], &properties)
-        .ok()?;
-    let font = handle.load().ok()?;
-    font.copy_font_data().map(|arc| arc.to_vec())
+    crate::utils::find_font(family, weight)
+        .and_then(|f| f.copy_font_data())
+        .map(|arc| arc.to_vec())
 }
 
 impl App {
