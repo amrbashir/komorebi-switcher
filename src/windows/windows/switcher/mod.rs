@@ -37,20 +37,6 @@ fn load_font_data(family: &str, weight: u16) -> Option<Vec<u8>> {
     db.with_face_data(id, |data, _| data.to_vec())
 }
 
-fn apply_font_to_context(ctx: &egui::Context, font_data: Vec<u8>) {
-    let mut fonts = egui::FontDefinitions::default();
-    fonts.font_data.insert(
-        "switcher_custom".to_owned(),
-        egui::FontData::from_owned(font_data).into(),
-    );
-    fonts
-        .families
-        .entry(egui::FontFamily::Proportional)
-        .or_default()
-        .insert(0, "switcher_custom".to_owned());
-    ctx.set_fonts(fonts);
-}
-
 impl App {
     pub fn create_switcher_window(
         &mut self,
@@ -268,18 +254,29 @@ impl SwitcherWindowView {
 
         self.applied_font = desired.clone();
 
-        match desired {
-            Some((family, weight)) => match load_font_data(&family, weight) {
-                Some(data) => apply_font_to_context(ctx, data),
-                None => {
-                    tracing::warn!(
-                        "Font '{family}' with weight {weight} not found, falling back to default font"
-                    );
-                    ctx.set_fonts(egui::FontDefinitions::default());
-                }
-            },
-            None => ctx.set_fonts(egui::FontDefinitions::default()),
+        let font_data = desired.as_ref().and_then(|(family, weight)| {
+            let data = load_font_data(family, *weight);
+            if data.is_none() {
+                tracing::warn!(
+                    "Font '{family}' with weight {weight} not found, falling back to default font"
+                );
+            }
+            data
+        });
+
+        let mut fonts = egui::FontDefinitions::default();
+        if let Some(data) = font_data {
+            fonts.font_data.insert(
+                "switcher_custom".to_owned(),
+                egui::FontData::from_owned(data).into(),
+            );
+            fonts
+                .families
+                .entry(egui::FontFamily::Proportional)
+                .or_default()
+                .insert(0, "switcher_custom".to_owned());
         }
+        ctx.set_fonts(fonts);
     }
 
     fn is_system_dark_mode(&self) -> bool {

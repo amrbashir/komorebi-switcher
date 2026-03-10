@@ -156,10 +156,7 @@ impl AppDelegate {
                 continue;
             }
 
-            let workspace_button = WorkspaceButton::new(mtm, workspace);
-            if let Some(font) = custom_font {
-                workspace_button.setFont(Some(font));
-            }
+            let workspace_button = WorkspaceButton::new(mtm, workspace, custom_font);
             stack_view.addArrangedSubview(&workspace_button);
             views.push(workspace_button.downcast().unwrap());
         }
@@ -171,10 +168,7 @@ impl AppDelegate {
                 stack_view.addArrangedSubview(&separator);
                 views.push(separator.downcast().unwrap());
 
-                let layout_button = LayoutButton::new(mtm, focused_ws);
-                if let Some(font) = custom_font {
-                    layout_button.setFont(Some(font));
-                }
+                let layout_button = LayoutButton::new(mtm, focused_ws, custom_font);
                 stack_view.addArrangedSubview(&layout_button);
                 views.push(layout_button.downcast().unwrap());
             }

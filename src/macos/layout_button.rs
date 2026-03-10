@@ -2,7 +2,7 @@ use std::cell::{Cell, RefCell};
 
 use objc2::rc::Retained;
 use objc2::{define_class, msg_send, sel, AnyThread, DefinedClass, MainThreadOnly};
-use objc2_app_kit::{NSButton, NSColor, NSEvent, NSTrackingArea, NSTrackingAreaOptions};
+use objc2_app_kit::{NSButton, NSColor, NSEvent, NSFont, NSTrackingArea, NSTrackingAreaOptions};
 use objc2_foundation::{MainThreadMarker, NSObjectProtocol, NSString};
 
 use crate::komorebi::CycleDirection;
@@ -89,7 +89,11 @@ define_class!(
 );
 
 impl LayoutButton {
-    pub fn new(mtm: MainThreadMarker, workspace: &crate::komorebi::Workspace) -> Retained<Self> {
+    pub fn new(
+        mtm: MainThreadMarker,
+        workspace: &crate::komorebi::Workspace,
+        font: Option<&NSFont>,
+    ) -> Retained<Self> {
         // Create button
         let this = Self::alloc(mtm).set_ivars(LayoutButtonIvars::new(workspace.clone()));
         // SAFETY: The signature of `NSButton`'s `init` method is correct.
@@ -97,6 +101,9 @@ impl LayoutButton {
 
         // Configure button
         this.setTitle(&NSString::from_str(&workspace.layout));
+        if let Some(font) = font {
+            this.setFont(Some(font));
+        }
 
         // Set up action handler
         unsafe { this.setTarget(Some(&this)) };
