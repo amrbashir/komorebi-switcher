@@ -23,6 +23,20 @@ use crate::windows::widgets::{LayoutButton, WorkspaceButton};
 
 mod host;
 
+fn load_font_data(family: &str, weight: u16) -> Option<Vec<u8>> {
+    let mut db = fontdb::Database::new();
+    db.load_system_fonts();
+
+    let query = fontdb::Query {
+        families: &[fontdb::Family::Name(family)],
+        weight: fontdb::Weight(weight),
+        ..Default::default()
+    };
+
+    let id = db.query(&query)?;
+    db.with_face_data(id, |data, _| data.to_vec())
+}
+
 fn apply_font_to_context(ctx: &egui::Context, font_data: Vec<u8>) {
     let mut fonts = egui::FontDefinitions::default();
     fonts.font_data.insert(
@@ -109,7 +123,7 @@ pub struct SwitcherWindowView {
     accent_color: Option<egui::Color32>,
     forgreound_color: Option<egui::Color32>,
     prev_bounds: Option<egui::Rect>,
-    applied_font: Option<std::path::PathBuf>,
+    applied_font: Option<(String, u16)>,
 }
 
 impl SwitcherWindowView {
@@ -243,7 +257,10 @@ impl SwitcherWindowView {
     }
 
     fn maybe_apply_font(&mut self, ctx: &egui::Context, config: &Config) {
-        let desired = config.font_file.clone();
+        let desired = config
+            .font_family
+            .as_deref()
+            .map(|family| (family.to_string(), config.font_weight.unwrap_or(400)));
 
         if self.applied_font == desired {
             return;
@@ -252,12 +269,11 @@ impl SwitcherWindowView {
         self.applied_font = desired.clone();
 
         match desired {
-            Some(path) => match std::fs::read(&path) {
-                Ok(data) => apply_font_to_context(ctx, data),
-                Err(e) => {
+            Some((family, weight)) => match load_font_data(&family, weight) {
+                Some(data) => apply_font_to_context(ctx, data),
+                None => {
                     tracing::warn!(
-                        "Failed to read font file '{}': {e}, falling back to default font",
-                        path.display()
+                        "Font '{family}' with weight {weight} not found, falling back to default font"
                     );
                     ctx.set_fonts(egui::FontDefinitions::default());
                 }

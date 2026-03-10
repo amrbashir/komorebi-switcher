@@ -93,34 +93,28 @@ impl SettingsWindowView {
 
         ui.separator();
 
-        ui.label("Font File");
-        ui.horizontal(|ui| {
-            let font_path_str = self
-                .config
-                .font_file
-                .as_deref()
-                .and_then(|p| p.to_str())
-                .unwrap_or("")
-                .to_string();
-            ui.label(if font_path_str.is_empty() {
-                "None".to_string()
+        ui.label("Font Family");
+        let mut font_family = self.config.font_family.clone().unwrap_or_default();
+        if ui.text_edit_singleline(&mut font_family).changed() {
+            self.config.font_family = if font_family.is_empty() {
+                None
             } else {
-                font_path_str
-            });
+                Some(font_family)
+            };
+        }
 
-            if ui.button("Browse…").clicked() {
-                if let Some(path) = rfd::FileDialog::new()
-                    .add_filter("Font files", &["ttf", "otf", "ttc", "otc"])
-                    .pick_file()
-                {
-                    self.config.font_file = Some(path);
-                }
-            }
-
-            if self.config.font_file.is_some() && ui.button("Clear").clicked() {
-                self.config.font_file = None;
-            }
-        });
+        ui.label("Font Weight");
+        let mut font_weight = self.config.font_weight.unwrap_or(400);
+        if ui
+            .add(
+                egui::DragValue::new(&mut font_weight)
+                    .range(100..=900)
+                    .speed(10),
+            )
+            .changed()
+        {
+            self.config.font_weight = Some(font_weight);
+        }
     }
 
     fn show_layout_button_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {

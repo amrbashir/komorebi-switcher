@@ -58,7 +58,9 @@ pub struct Config {
     pub hide_empty_workspaces: bool,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub font_file: Option<PathBuf>,
+    pub font_family: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub font_weight: Option<u16>,
 
     #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub monitors: HashMap<String, MonitorConfig>,
