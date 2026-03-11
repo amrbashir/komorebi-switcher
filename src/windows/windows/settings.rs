@@ -175,20 +175,16 @@ impl SettingsWindowView {
         let monitor_config = self.config.get_monitor_or_default(monitor_id);
         ui.label("Font Family");
         ui.horizontal(|ui| {
-            let mut override_family = monitor_config.font_family.is_some();
-            if ui.checkbox(&mut override_family, "").changed() {
-                monitor_config.font_family = if override_family {
-                    Some(String::new())
-                } else {
-                    None
-                };
-            }
+            let mut inherit = monitor_config.font_family.is_none();
             let mut font_family = monitor_config.font_family.clone().unwrap_or_default();
             if ui
-                .add_enabled(override_family, egui::TextEdit::singleline(&mut font_family))
+                .add_enabled(!inherit, egui::TextEdit::singleline(&mut font_family))
                 .changed()
             {
                 monitor_config.font_family = Some(font_family);
+            }
+            if ui.checkbox(&mut inherit, "Inherit").changed() {
+                monitor_config.font_family = if inherit { None } else { Some(String::new()) };
             }
         });
     }
@@ -197,14 +193,11 @@ impl SettingsWindowView {
         let monitor_config = self.config.get_monitor_or_default(monitor_id);
         ui.label("Font Weight");
         ui.horizontal(|ui| {
-            let mut override_weight = monitor_config.font_weight.is_some();
-            if ui.checkbox(&mut override_weight, "").changed() {
-                monitor_config.font_weight = if override_weight { Some(400) } else { None };
-            }
+            let mut inherit = monitor_config.font_weight.is_none();
             let mut font_weight = monitor_config.font_weight.unwrap_or(400);
             if ui
                 .add_enabled(
-                    override_weight,
+                    !inherit,
                     egui::DragValue::new(&mut font_weight)
                         .range(100..=900)
                         .speed(10),
@@ -212,6 +205,9 @@ impl SettingsWindowView {
                 .changed()
             {
                 monitor_config.font_weight = Some(font_weight);
+            }
+            if ui.checkbox(&mut inherit, "Inherit").changed() {
+                monitor_config.font_weight = if inherit { None } else { Some(400) };
             }
         });
     }
