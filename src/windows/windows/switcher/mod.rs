@@ -235,10 +235,16 @@ impl SwitcherWindowView {
     }
 
     fn maybe_apply_font(&mut self, ctx: &egui::Context, config: &Config) {
-        let desired = config
+        let monitor_config = config.get_monitor(&self.monitor_state.id);
+        let font_family = monitor_config
             .font_family
             .as_deref()
-            .map(|family| (family.to_string(), config.font_weight.unwrap_or(400)));
+            .or(config.font_family.as_deref());
+        let font_weight = monitor_config
+            .font_weight
+            .or(config.font_weight)
+            .unwrap_or(400);
+        let desired = font_family.map(|family| (family.to_string(), font_weight));
 
         if self.applied_font == desired {
             return;

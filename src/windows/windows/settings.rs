@@ -91,30 +91,32 @@ impl SettingsWindowView {
             "Hide empty workspaces",
         ));
 
-        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label("Font Family");
+            let mut font_family = self.config.font_family.clone().unwrap_or_default();
+            if ui.text_edit_singleline(&mut font_family).changed() {
+                self.config.font_family = if font_family.is_empty() {
+                    None
+                } else {
+                    Some(font_family)
+                };
+            }
+        });
 
-        ui.label("Font Family");
-        let mut font_family = self.config.font_family.clone().unwrap_or_default();
-        if ui.text_edit_singleline(&mut font_family).changed() {
-            self.config.font_family = if font_family.is_empty() {
-                None
-            } else {
-                Some(font_family)
-            };
-        }
-
-        ui.label("Font Weight");
-        let mut font_weight = self.config.font_weight.unwrap_or(400);
-        if ui
-            .add(
-                egui::DragValue::new(&mut font_weight)
-                    .range(100..=900)
-                    .speed(10),
-            )
-            .changed()
-        {
-            self.config.font_weight = Some(font_weight);
-        }
+        ui.horizontal(|ui| {
+            ui.label("Font Weight");
+            let mut font_weight = self.config.font_weight.unwrap_or(400);
+            if ui
+                .add(
+                    egui::DragValue::new(&mut font_weight)
+                        .range(100..=900)
+                        .speed(10),
+                )
+                .changed()
+            {
+                self.config.font_weight = Some(font_weight);
+            }
+        });
     }
 
     fn show_layout_button_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
@@ -169,6 +171,35 @@ impl SettingsWindowView {
         }
     }
 
+    fn font_family_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
+        let monitor_config = self.config.get_monitor_or_default(monitor_id);
+        ui.label("Font Family");
+        let mut font_family = monitor_config.font_family.clone().unwrap_or_default();
+        if ui.text_edit_singleline(&mut font_family).changed() {
+            monitor_config.font_family = if font_family.is_empty() {
+                None
+            } else {
+                Some(font_family)
+            };
+        }
+    }
+
+    fn font_weight_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
+        let monitor_config = self.config.get_monitor_or_default(monitor_id);
+        ui.label("Font Weight");
+        let mut font_weight = monitor_config.font_weight.unwrap_or(400);
+        if ui
+            .add(
+                egui::DragValue::new(&mut font_weight)
+                    .range(100..=900)
+                    .speed(10),
+            )
+            .changed()
+        {
+            monitor_config.font_weight = Some(font_weight);
+        }
+    }
+
     fn monitor_settings_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
         let monitor_config = self.config.get_monitor_or_default(monitor_id);
 
@@ -204,6 +235,12 @@ impl SettingsWindowView {
         ui.end_row();
 
         self.hide_empty_workspaces_ui(ui, monitor_id);
+        ui.end_row();
+
+        self.font_family_ui(ui, monitor_id);
+        ui.end_row();
+
+        self.font_weight_ui(ui, monitor_id);
         ui.end_row();
     }
 
