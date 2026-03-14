@@ -20,7 +20,7 @@ impl App {
         let attrs = WindowAttributes::default()
             .with_title("Settings")
             .with_class_name(class_name)
-            .with_inner_size(PhysicalSize::new(450, 600))
+            .with_inner_size(PhysicalSize::new(500, 600))
             .with_resizable(true)
             .with_no_redirection_bitmap(true);
 
@@ -82,7 +82,9 @@ impl SettingsWindowView {
         ui.horizontal(|ui| {
             ui.label("Font Family");
             let mut font_family = self.config.font_family.clone().unwrap_or_default();
-            let text_edit = egui::TextEdit::singleline(&mut font_family).hint_text("i.e Roboto");
+            let text_edit = egui::TextEdit::singleline(&mut font_family)
+                .hint_text("i.e Roboto")
+                .desired_width(100.0);
             if ui.add(text_edit).changed() {
                 self.config.font_family = (!font_family.is_empty()).then_some(font_family);
             }
@@ -199,7 +201,9 @@ impl SettingsWindowView {
         ui.horizontal(|ui| {
             let mut inherit = monitor_config.font_family.is_none();
             let mut font_family = monitor_config.font_family.clone().unwrap_or_default();
-            let text_edit = egui::TextEdit::singleline(&mut font_family).hint_text("i.e Roboto");
+            let text_edit = egui::TextEdit::singleline(&mut font_family)
+                .hint_text("i.e Roboto")
+                .desired_width(100.0);
             if ui.add_enabled(!inherit, text_edit).changed() {
                 monitor_config.font_family = (!font_family.is_empty()).then_some(font_family);
             }
