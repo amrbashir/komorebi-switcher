@@ -23,12 +23,6 @@ use crate::windows::widgets::{LayoutButton, WorkspaceButton};
 
 mod host;
 
-fn load_font_data(family: &str, weight: u16) -> Option<Vec<u8>> {
-    crate::utils::find_font(family, weight)
-        .and_then(|f| f.copy_font_data())
-        .map(|arc| arc.to_vec())
-}
-
 impl App {
     pub fn create_switcher_window(
         &mut self,
@@ -178,8 +172,12 @@ impl SwitcherWindowView {
 
     const WORKSPACES_MARGIN: egui::Margin = egui::Margin::same(1);
 
-    fn resize_host_to_rect(&mut self, rect: egui::Rect, ppp: f32) -> anyhow::Result<()> {
-        let config = self.effective_config();
+    fn resize_host_to_rect(
+        &mut self,
+        rect: egui::Rect,
+        ppp: f32,
+        config: &Config,
+    ) -> anyhow::Result<()> {
         let monitor_config = config.get_monitor(&self.monitor_state.id);
 
         // Add margins to rect and scale by ppp
@@ -244,16 +242,21 @@ impl SwitcherWindowView {
             .font_weight
             .or(config.font_weight)
             .unwrap_or(400);
-        let desired = font_family.map(|family| (family.to_string(), font_weight));
 
+        // Skip if the desired font is already applied
+        let desired = font_family.map(|family| (family.to_string(), font_weight));
         if self.applied_font == desired {
             return;
         }
 
+        // Update applied font to avoid redundant updates next time
         self.applied_font = desired.clone();
 
+        // Load font data for the desired font, if specified. If loading fails, log a warning and fall back to default font.
         let font_data = desired.as_ref().and_then(|(family, weight)| {
-            let data = load_font_data(family, *weight);
+            let font = crate::utils::find_font(family, *weight);
+            let data = font.and_then(|f| f.copy_font_data());
+            let data = data.map(|arc| arc.to_vec());
             if data.is_none() {
                 tracing::warn!(
                     "Font '{family}' with weight {weight} not found, falling back to default font"
@@ -264,15 +267,17 @@ impl SwitcherWindowView {
 
         let mut fonts = egui::FontDefinitions::default();
         if let Some(data) = font_data {
+            const SWITCHER_FONT_NAME: &str = "switcher_custom";
+
             fonts.font_data.insert(
-                "switcher_custom".to_owned(),
+                SWITCHER_FONT_NAME.to_owned(),
                 egui::FontData::from_owned(data).into(),
             );
             fonts
                 .families
                 .entry(egui::FontFamily::Proportional)
                 .or_default()
-                .insert(0, "switcher_custom".to_owned());
+                .insert(0, SWITCHER_FONT_NAME.to_owned());
         }
         ctx.set_fonts(fonts);
     }
@@ -292,7 +297,7 @@ impl SwitcherWindowView {
         }
     }
 
-    fn workspaces_row(&mut self, ui: &mut egui::Ui) -> egui::Response {
+    fn workspaces_row(&mut self, ui: &mut egui::Ui, config: &Config) -> egui::Response {
         // show context menu on right click
         if ui.input(|i| i.pointer.button_pressed(egui::PointerButton::Secondary)) {
             self.show_context_menu();
@@ -302,7 +307,6 @@ impl SwitcherWindowView {
             ui.scope(|ui| {
                 ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
 
-                let config = self.effective_config();
                 let monitor_config = config.get_monitor(&self.monitor_state.id);
                 let hide_empty_workspaces = match monitor_config.hide_empty_workspaces {
                     Some(hide) => hide,
@@ -403,9 +407,10 @@ impl EguiView for SwitcherWindowView {
         self.maybe_apply_font(ctx, &config);
 
         self.transparent_panel(ctx).show(ctx, |ui| {
-            let response = self.workspaces_row(ui);
+            let response = self.workspaces_row(ui, &config);
 
-            if let Err(e) = self.resize_host_to_rect(response.rect, ctx.pixels_per_point()) {
+            if let Err(e) = self.resize_host_to_rect(response.rect, ctx.pixels_per_point(), &config)
+            {
                 tracing::error!("Failed to resize host to rect: {e}");
             }
         });

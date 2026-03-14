@@ -78,6 +78,30 @@ impl SettingsWindowView {
         }
     }
 
+    fn global_font_family_ui(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Font Family");
+            let mut font_family = self.config.font_family.clone().unwrap_or_default();
+            let text_edit = egui::TextEdit::singleline(&mut font_family).hint_text("i.e Roboto");
+            if ui.add(text_edit).changed() {
+                self.config.font_family = (!font_family.is_empty()).then_some(font_family);
+            }
+        });
+    }
+
+    fn global_font_weight_ui(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Font Weight");
+            let mut font_weight = self.config.font_weight.unwrap_or(400);
+            let drag_value = egui::DragValue::new(&mut font_weight)
+                .range(100..=900)
+                .speed(10);
+            if ui.add(drag_value).changed() {
+                self.config.font_weight = Some(font_weight);
+            }
+        });
+    }
+
     fn global_settings_ui(&mut self, ui: &mut egui::Ui) {
         ui.heading("Global Settings");
 
@@ -91,31 +115,29 @@ impl SettingsWindowView {
             "Hide empty workspaces",
         ));
 
-        ui.horizontal(|ui| {
-            ui.label("Font Family");
-            let mut font_family = self.config.font_family.clone().unwrap_or_default();
-            if ui.text_edit_singleline(&mut font_family).changed() {
-                self.config.font_family = if font_family.is_empty() {
-                    None
-                } else {
-                    Some(font_family)
-                };
-            }
-        });
+        self.global_font_family_ui(ui);
+        self.global_font_weight_ui(ui);
+    }
 
+    fn width_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
+        let monitor_config = self.config.get_monitor_or_default(monitor_id);
+
+        ui.label("Width");
         ui.horizontal(|ui| {
-            ui.label("Font Weight");
-            let mut font_weight = self.config.font_weight.unwrap_or(400);
-            if ui
-                .add(
-                    egui::DragValue::new(&mut font_weight)
-                        .range(100..=900)
-                        .speed(10),
-                )
-                .changed()
-            {
-                self.config.font_weight = Some(font_weight);
-            }
+            let drag_value = egui::DragValue::new(&mut monitor_config.width);
+            ui.add_enabled(!monitor_config.auto_width, drag_value);
+            ui.checkbox(&mut monitor_config.auto_width, "Auto");
+        });
+    }
+
+    fn height_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
+        let monitor_config = self.config.get_monitor_or_default(monitor_id);
+
+        ui.label("Height");
+        ui.horizontal(|ui| {
+            let drag_value = egui::DragValue::new(&mut monitor_config.height);
+            ui.add_enabled(!monitor_config.auto_height, drag_value);
+            ui.checkbox(&mut monitor_config.auto_height, "Auto");
         });
     }
 
@@ -177,11 +199,9 @@ impl SettingsWindowView {
         ui.horizontal(|ui| {
             let mut inherit = monitor_config.font_family.is_none();
             let mut font_family = monitor_config.font_family.clone().unwrap_or_default();
-            if ui
-                .add_enabled(!inherit, egui::TextEdit::singleline(&mut font_family))
-                .changed()
-            {
-                monitor_config.font_family = Some(font_family);
+            let text_edit = egui::TextEdit::singleline(&mut font_family).hint_text("i.e Roboto");
+            if ui.add_enabled(!inherit, text_edit).changed() {
+                monitor_config.font_family = (!font_family.is_empty()).then_some(font_family);
             }
             if ui.checkbox(&mut inherit, "Inherit").changed() {
                 monitor_config.font_family = if inherit { None } else { Some(String::new()) };
@@ -195,15 +215,10 @@ impl SettingsWindowView {
         ui.horizontal(|ui| {
             let mut inherit = monitor_config.font_weight.is_none();
             let mut font_weight = monitor_config.font_weight.unwrap_or(400);
-            if ui
-                .add_enabled(
-                    !inherit,
-                    egui::DragValue::new(&mut font_weight)
-                        .range(100..=900)
-                        .speed(10),
-                )
-                .changed()
-            {
+            let drag_value = egui::DragValue::new(&mut font_weight)
+                .range(100..=900)
+                .speed(10);
+            if ui.add_enabled(!inherit, drag_value).changed() {
                 monitor_config.font_weight = Some(font_weight);
             }
             if ui.checkbox(&mut inherit, "Inherit").changed() {
@@ -223,24 +238,10 @@ impl SettingsWindowView {
         ui.add(egui::DragValue::new(&mut monitor_config.y));
         ui.end_row();
 
-        ui.label("Width");
-        ui.horizontal(|ui| {
-            ui.add_enabled(
-                !monitor_config.auto_width,
-                egui::DragValue::new(&mut monitor_config.width),
-            );
-            ui.checkbox(&mut monitor_config.auto_width, "Auto");
-        });
+        self.width_ui(ui, monitor_id);
         ui.end_row();
 
-        ui.label("Height");
-        ui.horizontal(|ui| {
-            ui.add_enabled(
-                !monitor_config.auto_height,
-                egui::DragValue::new(&mut monitor_config.height),
-            );
-            ui.checkbox(&mut monitor_config.auto_height, "Auto");
-        });
+        self.height_ui(ui, monitor_id);
         ui.end_row();
 
         self.show_layout_button_ui(ui, monitor_id);

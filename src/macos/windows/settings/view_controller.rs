@@ -138,19 +138,21 @@ impl SettingsViewController {
 
         let vstack = self.create_vstack();
 
+        // Show layout button checkbox
         let layout = self.create_checkbox("Show layout button", config.show_layout_button);
         vstack.addArrangedSubview(&layout);
         *self.ivars().show_layout_button_checkbox.borrow_mut() = Some(layout);
 
+        // Hide empty workspaces checkbox
         let label = "Hide empty workspaces";
         let empty_workspace = self.create_checkbox(label, config.hide_empty_workspaces);
         vstack.addArrangedSubview(&empty_workspace);
         *self.ivars().hide_empty_workspaces_checkbox.borrow_mut() = Some(empty_workspace);
 
-        // Font family row
+        // Font family input
         let family_row = self.create_hstack();
-        let family_label =
-            NSTextField::labelWithString(&NSString::from_str("Font Family"), self.mtm());
+        let family_label = NSString::from_str("Font Family");
+        let family_label = NSTextField::labelWithString(&family_label, self.mtm());
         let family_value = config.font_family.as_deref().unwrap_or("");
         let family_field = self.create_text_field("e.g. Roboto", family_value);
         family_row.addArrangedSubview(&family_label);
@@ -158,12 +160,12 @@ impl SettingsViewController {
         vstack.addArrangedSubview(&family_row);
         *self.ivars().font_family_field.borrow_mut() = Some(family_field);
 
-        // Font weight row
+        // Font weight input
         let weight_row = self.create_hstack();
-        let weight_label =
-            NSTextField::labelWithString(&NSString::from_str("Font Weight"), self.mtm());
+        let weight_label = NSString::from_str("Font Weight");
+        let weight_label = NSTextField::labelWithString(&weight_label, self.mtm());
         let weight_value = config.font_weight.unwrap_or(400).to_string();
-        let weight_field = self.create_text_field("100–900", &weight_value);
+        let weight_field = self.create_text_field("100-900", &weight_value);
         weight_row.addArrangedSubview(&weight_label);
         weight_row.addArrangedSubview(&weight_field);
         vstack.addArrangedSubview(&weight_row);

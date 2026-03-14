@@ -86,7 +86,8 @@ define_class!(
             let custom_font = config.font_family.as_deref().and_then(|family| {
                 let weight = config.font_weight.unwrap_or(400);
                 let size = NSFont::systemFontOfSize(0.0).pointSize();
-                resolve_ns_font(family, weight, size)
+                let postscript_name = crate::utils::find_font(family, weight)?.postscript_name()?;
+                NSFont::fontWithName_size(&NSString::from_str(&postscript_name), size)
             });
             let _ = self.ivars().custom_font.set(custom_font);
             let _ = self.ivars().config.set(config);
@@ -148,7 +149,7 @@ impl AppDelegate {
             return;
         };
 
-        // Use the cached custom font resolved once at startup.
+        // Use the cached resolved custom font
         let custom_font = self.ivars().custom_font.get().and_then(|f| f.as_deref());
 
         for workspace in &monitor.workspaces {
@@ -183,14 +184,6 @@ impl AppDelegate {
             btn.setFrame(frame);
         }
     }
-}
-
-/// Use font-kit to look up the PostScript name for a given family+weight via the
-/// system's native font APIs, then create an NSFont from it. Returns None if
-/// the font cannot be found.
-fn resolve_ns_font(family: &str, weight: u16, size: f64) -> Option<Retained<NSFont>> {
-    let postscript_name = crate::utils::find_font(family, weight)?.postscript_name()?;
-    NSFont::fontWithName_size(&NSString::from_str(&postscript_name), size)
 }
 
 pub fn run() -> anyhow::Result<()> {
