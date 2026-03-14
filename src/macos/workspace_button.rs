@@ -2,7 +2,9 @@ use std::cell::{Cell, OnceCell, RefCell};
 
 use objc2::rc::Retained;
 use objc2::{define_class, msg_send, sel, AnyThread, DefinedClass, MainThreadOnly};
-use objc2_app_kit::{NSButton, NSColor, NSEvent, NSTrackingArea, NSTrackingAreaOptions, NSView};
+use objc2_app_kit::{
+    NSButton, NSColor, NSEvent, NSFont, NSTrackingArea, NSTrackingAreaOptions, NSView,
+};
 use objc2_foundation::{MainThreadMarker, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
 
 #[derive(Debug)]
@@ -92,7 +94,11 @@ impl WorkspaceButton {
     const INDICATOR_SIZE: f64 = 4.0;
     pub const HEIGHT: f64 = 24.0;
 
-    pub fn new(mtm: MainThreadMarker, workspace: &crate::komorebi::Workspace) -> Retained<Self> {
+    pub fn new(
+        mtm: MainThreadMarker,
+        workspace: &crate::komorebi::Workspace,
+        font: Option<&NSFont>,
+    ) -> Retained<Self> {
         // Create button
         let this = Self::alloc(mtm).set_ivars(WorkspaceButtonIvars::new(workspace.clone()));
         // SAFETY: The signature of `NSButton`'s `init` method is correct.
@@ -101,6 +107,9 @@ impl WorkspaceButton {
         // Configure button
         this.setTitle(&NSString::from_str(&workspace.name));
         this.setTag(workspace.index as isize);
+        if let Some(font) = font {
+            this.setFont(Some(font));
+        }
 
         // Set up action handler
         unsafe { this.setTarget(Some(&this)) };

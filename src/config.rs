@@ -12,12 +12,17 @@ fn default_height() -> i32 {
     40
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonitorConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub show_layout_button: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hide_empty_workspaces: Option<bool>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub font_family: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub font_weight: Option<u16>,
 
     #[serde(default = "default_true")]
     pub auto_width: bool,
@@ -40,6 +45,8 @@ impl Default for MonitorConfig {
         Self {
             show_layout_button: None,
             hide_empty_workspaces: None,
+            font_family: None,
+            font_weight: None,
             auto_width: true,
             auto_height: true,
             x: 0,
@@ -56,6 +63,11 @@ pub struct Config {
     pub show_layout_button: bool,
     #[serde(default)]
     pub hide_empty_workspaces: bool,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub font_family: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub font_weight: Option<u16>,
 
     #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub monitors: HashMap<String, MonitorConfig>,
@@ -120,7 +132,7 @@ impl Config {
 
     #[allow(dead_code)]
     pub fn get_monitor(&self, monitor_id: &str) -> MonitorConfig {
-        self.monitors.get(monitor_id).copied().unwrap_or_default()
+        self.monitors.get(monitor_id).cloned().unwrap_or_default()
     }
 
     #[allow(dead_code)]

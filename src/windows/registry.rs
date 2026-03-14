@@ -47,6 +47,8 @@ impl Config {
                     auto_height,
                     show_layout_button: None,
                     hide_empty_workspaces: None,
+                    font_family: None,
+                    font_weight: None,
                 },
             );
         }

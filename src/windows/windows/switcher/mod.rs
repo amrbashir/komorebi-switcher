@@ -95,6 +95,7 @@ pub struct SwitcherWindowView {
     accent_color: Option<egui::Color32>,
     forgreound_color: Option<egui::Color32>,
     prev_bounds: Option<egui::Rect>,
+    applied_font: Option<(String, u16)>,
 }
 
 impl SwitcherWindowView {
@@ -116,6 +117,7 @@ impl SwitcherWindowView {
             config,
             preview_config: None,
             prev_bounds: None,
+            applied_font: None,
         };
 
         if let Err(e) = view.update_system_colors() {
@@ -170,8 +172,12 @@ impl SwitcherWindowView {
 
     const WORKSPACES_MARGIN: egui::Margin = egui::Margin::same(1);
 
-    fn resize_host_to_rect(&mut self, rect: egui::Rect, ppp: f32) -> anyhow::Result<()> {
-        let config = self.effective_config();
+    fn resize_host_to_rect(
+        &mut self,
+        rect: egui::Rect,
+        ppp: f32,
+        config: &Config,
+    ) -> anyhow::Result<()> {
         let monitor_config = config.get_monitor(&self.monitor_state.id);
 
         // Add margins to rect and scale by ppp
@@ -226,6 +232,56 @@ impl SwitcherWindowView {
         Ok(())
     }
 
+    fn maybe_apply_font(&mut self, ctx: &egui::Context, config: &Config) {
+        let monitor_config = config.get_monitor(&self.monitor_state.id);
+        let font_family = monitor_config
+            .font_family
+            .as_deref()
+            .or(config.font_family.as_deref());
+        let font_weight = monitor_config
+            .font_weight
+            .or(config.font_weight)
+            .unwrap_or(400);
+
+        // Skip if the desired font is already applied
+        let desired = font_family.map(|family| (family.to_string(), font_weight));
+        if self.applied_font == desired {
+            return;
+        }
+
+        // Update applied font to avoid redundant updates next time
+        self.applied_font = desired.clone();
+
+        // Load font data for the desired font, if specified. If loading fails, log a warning and fall back to default font.
+        let font_data = desired.as_ref().and_then(|(family, weight)| {
+            let font = crate::utils::find_font(family, *weight);
+            let data = font.and_then(|f| f.copy_font_data());
+            let data = data.map(|arc| arc.to_vec());
+            if data.is_none() {
+                tracing::warn!(
+                    "Font '{family}' with weight {weight} not found, falling back to default font"
+                );
+            }
+            data
+        });
+
+        let mut fonts = egui::FontDefinitions::default();
+        if let Some(data) = font_data {
+            const SWITCHER_FONT_NAME: &str = "switcher_custom";
+
+            fonts.font_data.insert(
+                SWITCHER_FONT_NAME.to_owned(),
+                egui::FontData::from_owned(data).into(),
+            );
+            fonts
+                .families
+                .entry(egui::FontFamily::Proportional)
+                .or_default()
+                .insert(0, SWITCHER_FONT_NAME.to_owned());
+        }
+        ctx.set_fonts(fonts);
+    }
+
     fn is_system_dark_mode(&self) -> bool {
         // FIXME: use egui internal dark mode detection
         self.forgreound_color
@@ -241,7 +297,7 @@ impl SwitcherWindowView {
         }
     }
 
-    fn workspaces_row(&mut self, ui: &mut egui::Ui) -> egui::Response {
+    fn workspaces_row(&mut self, ui: &mut egui::Ui, config: &Config) -> egui::Response {
         // show context menu on right click
         if ui.input(|i| i.pointer.button_pressed(egui::PointerButton::Secondary)) {
             self.show_context_menu();
@@ -251,7 +307,6 @@ impl SwitcherWindowView {
             ui.scope(|ui| {
                 ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
 
-                let config = self.effective_config();
                 let monitor_config = config.get_monitor(&self.monitor_state.id);
                 let hide_empty_workspaces = match monitor_config.hide_empty_workspaces {
                     Some(hide) => hide,
@@ -348,10 +403,14 @@ impl EguiView for SwitcherWindowView {
     }
 
     fn update(&mut self, ctx: &egui::Context) {
-        self.transparent_panel(ctx).show(ctx, |ui| {
-            let response = self.workspaces_row(ui);
+        let config = self.effective_config();
+        self.maybe_apply_font(ctx, &config);
 
-            if let Err(e) = self.resize_host_to_rect(response.rect, ctx.pixels_per_point()) {
+        self.transparent_panel(ctx).show(ctx, |ui| {
+            let response = self.workspaces_row(ui, &config);
+
+            if let Err(e) = self.resize_host_to_rect(response.rect, ctx.pixels_per_point(), &config)
+            {
                 tracing::error!("Failed to resize host to rect: {e}");
             }
         });

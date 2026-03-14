@@ -5,13 +5,13 @@ use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
 use objc2::{define_class, msg_send, DefinedClass, MainThreadOnly};
 use objc2_app_kit::{
-    NSApp, NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSStatusBar,
-    NSStatusItem, NSTextAlignment, NSTextField, NSUserInterfaceLayoutOrientation,
+    NSApp, NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSFont,
+    NSStatusBar, NSStatusItem, NSTextAlignment, NSTextField, NSUserInterfaceLayoutOrientation,
     NSVariableStatusItemLength, NSView,
 };
 use objc2_foundation::{
     ns_string, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect,
-    NSSize,
+    NSSize, NSString,
 };
 
 use self::workspace_button::WorkspaceButton;
@@ -31,6 +31,8 @@ pub struct AppDelegateIvars {
     ns_stack_view: OnceCell<Retained<WorkspacesStackView>>,
     buttons: RefCell<Vec<Retained<NSView>>>,
     config: OnceCell<Config>,
+    /// Resolved custom font, computed once at startup from the config.
+    custom_font: OnceCell<Option<Retained<NSFont>>>,
     settings_window: OnceCell<Retained<windows::settings::SettingsWindowController>>,
 }
 
@@ -79,6 +81,15 @@ define_class!(
             let _ = self.ivars().ns_stack_view.set(stack_view);
 
             let config = Config::load().unwrap_or_default();
+
+            // Resolve custom font lazily once at startup.
+            let custom_font = config.font_family.as_deref().and_then(|family| {
+                let weight = config.font_weight.unwrap_or(400);
+                let size = NSFont::systemFontOfSize(0.0).pointSize();
+                let postscript_name = crate::utils::find_font(family, weight)?.postscript_name()?;
+                NSFont::fontWithName_size(&NSString::from_str(&postscript_name), size)
+            });
+            let _ = self.ivars().custom_font.set(custom_font);
             let _ = self.ivars().config.set(config);
 
             self.update_workspace_buttons(komorebi_state);
@@ -138,12 +149,15 @@ impl AppDelegate {
             return;
         };
 
+        // Use the cached resolved custom font
+        let custom_font = self.ivars().custom_font.get().and_then(|f| f.as_deref());
+
         for workspace in &monitor.workspaces {
             if config.hide_empty_workspaces && workspace.is_empty && !workspace.focused {
                 continue;
             }
 
-            let workspace_button = WorkspaceButton::new(mtm, workspace);
+            let workspace_button = WorkspaceButton::new(mtm, workspace, custom_font);
             stack_view.addArrangedSubview(&workspace_button);
             views.push(workspace_button.downcast().unwrap());
         }
@@ -155,7 +169,7 @@ impl AppDelegate {
                 stack_view.addArrangedSubview(&separator);
                 views.push(separator.downcast().unwrap());
 
-                let layout_button = LayoutButton::new(mtm, focused_ws);
+                let layout_button = LayoutButton::new(mtm, focused_ws, custom_font);
                 stack_view.addArrangedSubview(&layout_button);
                 views.push(layout_button.downcast().unwrap());
             }

@@ -40,6 +40,8 @@ pub struct SettingsViewControllerIvars {
     config: RefCell<crate::config::Config>,
     show_layout_button_checkbox: RefCell<Option<Retained<NSButton>>>,
     hide_empty_workspaces_checkbox: RefCell<Option<Retained<NSButton>>>,
+    font_family_field: RefCell<Option<Retained<NSTextField>>>,
+    font_weight_field: RefCell<Option<Retained<NSTextField>>>,
 }
 
 impl SettingsViewControllerIvars {
@@ -48,6 +50,8 @@ impl SettingsViewControllerIvars {
             config: RefCell::new(config),
             show_layout_button_checkbox: RefCell::new(None),
             hide_empty_workspaces_checkbox: RefCell::new(None),
+            font_family_field: RefCell::new(None),
+            font_weight_field: RefCell::new(None),
         }
     }
 }
@@ -134,16 +138,48 @@ impl SettingsViewController {
 
         let vstack = self.create_vstack();
 
+        // Show layout button checkbox
         let layout = self.create_checkbox("Show layout button", config.show_layout_button);
         vstack.addArrangedSubview(&layout);
         *self.ivars().show_layout_button_checkbox.borrow_mut() = Some(layout);
 
+        // Hide empty workspaces checkbox
         let label = "Hide empty workspaces";
         let empty_workspace = self.create_checkbox(label, config.hide_empty_workspaces);
         vstack.addArrangedSubview(&empty_workspace);
         *self.ivars().hide_empty_workspaces_checkbox.borrow_mut() = Some(empty_workspace);
 
+        // Font family input
+        let family_row = self.create_hstack();
+        let family_label = NSString::from_str("Font Family");
+        let family_label = NSTextField::labelWithString(&family_label, self.mtm());
+        let family_value = config.font_family.as_deref().unwrap_or("");
+        let family_field = self.create_text_field("e.g. Roboto", family_value);
+        family_row.addArrangedSubview(&family_label);
+        family_row.addArrangedSubview(&family_field);
+        vstack.addArrangedSubview(&family_row);
+        *self.ivars().font_family_field.borrow_mut() = Some(family_field);
+
+        // Font weight input
+        let weight_row = self.create_hstack();
+        let weight_label = NSString::from_str("Font Weight");
+        let weight_label = NSTextField::labelWithString(&weight_label, self.mtm());
+        let weight_value = config.font_weight.unwrap_or(400).to_string();
+        let weight_field = self.create_text_field("100-900", &weight_value);
+        weight_row.addArrangedSubview(&weight_label);
+        weight_row.addArrangedSubview(&weight_field);
+        vstack.addArrangedSubview(&weight_row);
+        *self.ivars().font_weight_field.borrow_mut() = Some(weight_field);
+
         vstack
+    }
+
+    fn create_text_field(&self, placeholder: &str, initial_value: &str) -> Retained<NSTextField> {
+        let mtm = self.mtm();
+        let field = NSTextField::initWithFrame(NSTextField::alloc(mtm), Default::default());
+        field.setPlaceholderString(Some(&NSString::from_str(placeholder)));
+        field.setStringValue(&NSString::from_str(initial_value));
+        field
     }
 
     fn create_action_button(&self, title: &str, action: Sel) -> Retained<NSButton> {
@@ -181,6 +217,14 @@ impl SettingsViewController {
             .as_ref()
         {
             config.hide_empty_workspaces = checkbox.state() == NSControlStateValueOn;
+        }
+        if let Some(field) = self.ivars().font_family_field.borrow().as_ref() {
+            let value = field.stringValue().to_string();
+            config.font_family = if value.is_empty() { None } else { Some(value) };
+        }
+        if let Some(field) = self.ivars().font_weight_field.borrow().as_ref() {
+            let value = field.stringValue().to_string();
+            config.font_weight = value.parse::<u16>().ok();
         }
         config.save()?;
         Ok(())
