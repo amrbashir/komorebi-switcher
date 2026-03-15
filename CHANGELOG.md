@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added `font_family` and `font_weight` config options
+
 ## [0.10.1] - 2026-02-26
 
 ### Fixed
