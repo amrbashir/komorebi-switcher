@@ -345,9 +345,9 @@ impl SwitcherWindowView {
                 .colors
                 .active_indicator
                 .as_ref()
-                .and_then(|c| egui_color_from_color(c))
-                .or_else(|| self.accent_color()),
+                .and_then(|c| egui_color_from_color(c)),
         };
+        let active_indicator_color = active_indicator_color.or_else(|| self.accent_color());
 
         // Determine busy indicator color,
         // with monitor config taking precedence over global config.
