@@ -93,67 +93,80 @@ impl SettingsWindowView {
     }
 
     fn global_font_family_ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.label("Font Family");
-            let mut font_family = self.config.font_family.clone().unwrap_or_default();
-            let text_edit = egui::TextEdit::singleline(&mut font_family).hint_text("i.e Roboto");
-            if ui.add(text_edit).changed() {
-                self.config.font_family = (!font_family.is_empty()).then_some(font_family);
-            }
-        });
+        ui.label("Font Family");
+
+        let mut font_family = self.config.font_family.clone().unwrap_or_default();
+        let text_edit = egui::TextEdit::singleline(&mut font_family).hint_text("i.e Roboto");
+        if ui.add(text_edit).changed() {
+            self.config.font_family = (!font_family.is_empty()).then_some(font_family);
+        }
     }
 
     fn global_font_weight_ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.label("Font Weight");
-            let mut font_weight = self.config.font_weight.unwrap_or(400);
-            let drag_value = egui::DragValue::new(&mut font_weight);
-            let drag_value = drag_value.range(100..=900).speed(10);
-            if ui.add(drag_value).changed() {
-                self.config.font_weight = Some(font_weight);
-            }
-        });
+        ui.label("Font Weight");
+
+        let mut font_weight = self.config.font_weight.unwrap_or(400);
+        let drag_value = egui::DragValue::new(&mut font_weight);
+        let drag_value = drag_value.range(100..=900).speed(10);
+        if ui.add(drag_value).changed() {
+            self.config.font_weight = Some(font_weight);
+        }
     }
 
     fn global_active_indicator_color_ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            let colors = &self.config.colors;
-            let mut color = colors.active_indicator.clone().unwrap_or_default();
+        ui.label("Active Indicator");
 
-            ui.label("Active Indicator");
-            let text_edit = egui::TextEdit::singleline(&mut color);
-            let text_edit = text_edit.hint_text("#RRGGBBAA or rgba(...)");
+        let colors = &self.config.colors;
+        let mut color = colors.active_indicator.clone().unwrap_or_default();
 
-            if ui.add(text_edit).changed() {
-                self.config.colors.active_indicator = (!color.is_empty()).then_some(color);
-            }
-        });
+        let text_edit = egui::TextEdit::singleline(&mut color);
+        let text_edit = text_edit.hint_text("#FFFFFFFF");
+
+        if ui.add(text_edit).changed() {
+            self.config.colors.active_indicator = (!color.is_empty()).then_some(color);
+        }
     }
 
     fn global_busy_indicator_color_ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            let colors = &self.config.colors;
-            let mut color = colors.busy_indicator.clone().unwrap_or_default();
+        ui.label("Busy Indicator");
 
-            ui.label("Busy Indicator");
-            let text_edit = egui::TextEdit::singleline(&mut color);
-            let text_edit = text_edit.hint_text("#RRGGBBAA or rgba(...)");
+        let colors = &self.config.colors;
+        let mut color = colors.busy_indicator.clone().unwrap_or_default();
 
-            if ui.add(text_edit).changed() {
-                self.config.colors.busy_indicator = (!color.is_empty()).then_some(color);
-            }
-        });
+        let text_edit = egui::TextEdit::singleline(&mut color);
+        let text_edit = text_edit.hint_text("#FFFFFFFF");
+
+        if ui.add(text_edit).changed() {
+            self.config.colors.busy_indicator = (!color.is_empty()).then_some(color);
+        }
     }
 
     fn global_settings_ui(&mut self, ui: &mut egui::Ui) {
         ui.heading("Global Settings");
 
-        self.global_show_layout_button_ui(ui);
-        self.global_hide_empty_workspaces_ui(ui);
-        self.global_font_family_ui(ui);
-        self.global_font_weight_ui(ui);
-        self.global_active_indicator_color_ui(ui);
-        self.global_busy_indicator_color_ui(ui);
+        egui::Grid::new("Global Settings")
+            .num_columns(2)
+            .min_col_width(ui.min_rect().width())
+            .max_col_width(ui.available_width() - ui.min_rect().width())
+            .show(ui, |ui| {
+                self.global_show_layout_button_ui(ui);
+                ui.end_row();
+
+                self.global_hide_empty_workspaces_ui(ui);
+                ui.end_row();
+
+                self.global_font_family_ui(ui);
+                ui.end_row();
+
+                self.global_font_weight_ui(ui);
+                ui.end_row();
+
+                self.global_active_indicator_color_ui(ui);
+                ui.end_row();
+
+                self.global_busy_indicator_color_ui(ui);
+                ui.end_row();
+            });
     }
 
     fn x_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
@@ -289,7 +302,7 @@ impl SettingsWindowView {
             let mut color = colors.active_indicator.clone().unwrap_or_default();
 
             let text_edit = egui::TextEdit::singleline(&mut color);
-            let text_edit = text_edit.hint_text("#RRGGBBAA or rgba(...)");
+            let text_edit = text_edit.hint_text("#FFFFFFFF");
             if ui.add_enabled(!inherit, text_edit).changed() {
                 monitor_config.colors.active_indicator = (!color.is_empty()).then_some(color);
             }
@@ -311,7 +324,7 @@ impl SettingsWindowView {
             let mut color = colors.busy_indicator.clone().unwrap_or_default();
 
             let text_edit = egui::TextEdit::singleline(&mut color);
-            let text_edit = text_edit.hint_text("#RRGGBBAA or rgba(...)");
+            let text_edit = text_edit.hint_text("#FFFFFFFF");
             if ui.add_enabled(!inherit, text_edit).changed() {
                 monitor_config.colors.busy_indicator = (!color.is_empty()).then_some(color);
             }
@@ -324,6 +337,9 @@ impl SettingsWindowView {
     }
 
     fn monitor_settings_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
+        // Set text edit width to 40% of available width for better UX
+        ui.style_mut().spacing.text_edit_width = ui.available_width() * 0.4;
+
         self.x_ui(ui, monitor_id);
         ui.end_row();
 
@@ -372,9 +388,6 @@ impl SettingsWindowView {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui) {
-        // Preview config on each update
-        self.preview_config();
-
         self.global_settings_ui(ui);
 
         ui.separator();
@@ -389,15 +402,11 @@ impl SettingsWindowView {
                 .show(ui, |ui| {
                     egui::Grid::new(&header)
                         .num_columns(2)
-                        .min_col_width(ui.available_width() / 2.0)
-                        .max_col_width(ui.available_width() / 2.0)
+                        .min_col_width(ui.min_rect().width())
+                        .max_col_width(ui.available_width() - ui.min_rect().width())
                         .show(ui, |ui| self.monitor_settings_ui(ui, &monitor.id))
                 });
         }
-
-        ui.separator();
-
-        self.actions_ui(ui);
     }
 }
 
@@ -416,7 +425,18 @@ impl EguiView for SettingsWindowView {
     }
 
     fn update(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| self.ui(ui));
+        // Preview config on each update
+        self.preview_config();
+
+        egui::TopBottomPanel::bottom("actions").show(ctx, |ui| {
+            ui.add_space(4.0);
+            self.actions_ui(ui);
+            ui.add_space(4.0);
+        });
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            egui::ScrollArea::vertical().show(ui, |ui| self.ui(ui));
+        });
     }
 }
 
