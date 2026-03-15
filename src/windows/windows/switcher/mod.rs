@@ -340,7 +340,7 @@ impl SwitcherWindowView {
         // with monitor config taking precedence over global config,
         // and falling back to accent color if not specified.
         let active_indicator_color = match monitor_config.colors.active_indicator {
-            Some(ref c) => egui_color_from_color(&c),
+            Some(ref c) => egui_color_from_color(c),
             None => config
                 .colors
                 .active_indicator
@@ -352,7 +352,7 @@ impl SwitcherWindowView {
         // Determine busy indicator color,
         // with monitor config taking precedence over global config.
         let busy_indicator_color = match monitor_config.colors.busy_indicator {
-            Some(ref c) => egui_color_from_color(&c),
+            Some(ref c) => egui_color_from_color(c),
             None => config
                 .colors
                 .busy_indicator
@@ -394,7 +394,7 @@ impl SwitcherWindowView {
                 continue;
             }
 
-            self.workspace_button(ui, workspace, &monitor_config, config);
+            self.workspace_button(ui, workspace, monitor_config, config);
         }
 
         // Show layout button for focused workspace if the setting is enabled
