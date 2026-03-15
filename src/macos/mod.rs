@@ -21,6 +21,7 @@ use crate::macos::layout_button::LayoutButton;
 use crate::macos::windows::settings::SettingsWindowController;
 
 mod layout_button;
+mod utils;
 mod windows;
 mod workspace_button;
 mod workspaces_stack_view;
@@ -151,13 +152,21 @@ impl AppDelegate {
 
         // Use the cached resolved custom font
         let custom_font = self.ivars().custom_font.get().and_then(|f| f.as_deref());
+        let active_indicator_color = config.colors.active_indicator.as_deref();
+        let busy_indicator_color = config.colors.busy_indicator.as_deref();
 
         for workspace in &monitor.workspaces {
             if config.hide_empty_workspaces && workspace.is_empty && !workspace.focused {
                 continue;
             }
 
-            let workspace_button = WorkspaceButton::new(mtm, workspace, custom_font);
+            let workspace_button = WorkspaceButton::new(
+                mtm,
+                workspace,
+                custom_font,
+                active_indicator_color,
+                busy_indicator_color,
+            );
             stack_view.addArrangedSubview(&workspace_button);
             views.push(workspace_button.downcast().unwrap());
         }

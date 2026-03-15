@@ -12,6 +12,20 @@ fn default_height() -> i32 {
     40
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ColorsConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_indicator: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub busy_indicator: Option<String>,
+}
+
+impl ColorsConfig {
+    pub fn is_empty(&self) -> bool {
+        self.active_indicator.is_none() && self.busy_indicator.is_none()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonitorConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -23,6 +37,9 @@ pub struct MonitorConfig {
     pub font_family: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_weight: Option<u16>,
+
+    #[serde(default, skip_serializing_if = "ColorsConfig::is_empty")]
+    pub colors: ColorsConfig,
 
     #[serde(default = "default_true")]
     pub auto_width: bool,
@@ -47,6 +64,7 @@ impl Default for MonitorConfig {
             hide_empty_workspaces: None,
             font_family: None,
             font_weight: None,
+            colors: ColorsConfig::default(),
             auto_width: true,
             auto_height: true,
             x: 0,
@@ -68,6 +86,9 @@ pub struct Config {
     pub font_family: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_weight: Option<u16>,
+
+    #[serde(default, skip_serializing_if = "ColorsConfig::is_empty")]
+    pub colors: ColorsConfig,
 
     #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub monitors: HashMap<String, MonitorConfig>,
@@ -136,7 +157,7 @@ impl Config {
     }
 
     #[allow(dead_code)]
-    pub fn get_monitor_or_default(&mut self, monitor_id: &str) -> &mut MonitorConfig {
+    pub fn get_monitor_mut(&mut self, monitor_id: &str) -> &mut MonitorConfig {
         self.monitors.entry(monitor_id.to_string()).or_default()
     }
 

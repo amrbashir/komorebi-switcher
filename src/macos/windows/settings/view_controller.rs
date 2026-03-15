@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 
+use anyhow::Context;
 use objc2::rc::Retained;
 use objc2::runtime::Sel;
 use objc2::{define_class, msg_send, sel, DefinedClass, MainThreadOnly};
@@ -42,6 +43,8 @@ pub struct SettingsViewControllerIvars {
     hide_empty_workspaces_checkbox: RefCell<Option<Retained<NSButton>>>,
     font_family_field: RefCell<Option<Retained<NSTextField>>>,
     font_weight_field: RefCell<Option<Retained<NSTextField>>>,
+    active_indicator_color_field: RefCell<Option<Retained<NSTextField>>>,
+    busy_indicator_color_field: RefCell<Option<Retained<NSTextField>>>,
 }
 
 impl SettingsViewControllerIvars {
@@ -52,6 +55,8 @@ impl SettingsViewControllerIvars {
             hide_empty_workspaces_checkbox: RefCell::new(None),
             font_family_field: RefCell::new(None),
             font_weight_field: RefCell::new(None),
+            active_indicator_color_field: RefCell::new(None),
+            busy_indicator_color_field: RefCell::new(None),
         }
     }
 }
@@ -133,6 +138,23 @@ impl SettingsViewController {
         checkbox
     }
 
+    fn create_text_field(&self, placeholder: &str, initial_value: &str) -> Retained<NSTextField> {
+        let mtm = self.mtm();
+        let field = NSTextField::initWithFrame(NSTextField::alloc(mtm), Default::default());
+        field.setPlaceholderString(Some(&NSString::from_str(placeholder)));
+        field.setStringValue(&NSString::from_str(initial_value));
+        field
+    }
+
+    fn create_action_button(&self, title: &str, action: Sel) -> Retained<NSButton> {
+        let mtm = self.mtm();
+        let button = NSButton::new(mtm);
+        button.setTitle(&NSString::from_str(title));
+        unsafe { button.setTarget(Some(self)) };
+        unsafe { button.setAction(Some(action)) };
+        button
+    }
+
     fn create_global_settings_ui(&self) -> Retained<NSStackView> {
         let config = self.ivars().config.borrow();
 
@@ -171,26 +193,30 @@ impl SettingsViewController {
         vstack.addArrangedSubview(&weight_row);
         *self.ivars().font_weight_field.borrow_mut() = Some(weight_field);
 
+        let active_indicator_row = self.create_hstack();
+        let active_indicator_label = NSString::from_str("Active Indicator");
+        let active_indicator_label =
+            NSTextField::labelWithString(&active_indicator_label, self.mtm());
+        let active_indicator_value = config.colors.active_indicator.clone().unwrap_or_default();
+        let active_indicator_field =
+            self.create_text_field("#RRGGBBAA or rgba(...)", &active_indicator_value);
+        active_indicator_row.addArrangedSubview(&active_indicator_label);
+        active_indicator_row.addArrangedSubview(&active_indicator_field);
+        vstack.addArrangedSubview(&active_indicator_row);
+        *self.ivars().active_indicator_color_field.borrow_mut() = Some(active_indicator_field);
+
+        let busy_indicator_row = self.create_hstack();
+        let busy_indicator_label = NSString::from_str("Busy Indicator");
+        let busy_indicator_label = NSTextField::labelWithString(&busy_indicator_label, self.mtm());
+        let busy_indicator_value = config.colors.busy_indicator.clone().unwrap_or_default();
+        let busy_indicator_field =
+            self.create_text_field("#RRGGBBAA or rgba(...)", &busy_indicator_value);
+        busy_indicator_row.addArrangedSubview(&busy_indicator_label);
+        busy_indicator_row.addArrangedSubview(&busy_indicator_field);
+        vstack.addArrangedSubview(&busy_indicator_row);
+        *self.ivars().busy_indicator_color_field.borrow_mut() = Some(busy_indicator_field);
+
         vstack
-    }
-
-    fn create_text_field(&self, placeholder: &str, initial_value: &str) -> Retained<NSTextField> {
-        let mtm = self.mtm();
-        let field = NSTextField::initWithFrame(NSTextField::alloc(mtm), Default::default());
-        field.setPlaceholderString(Some(&NSString::from_str(placeholder)));
-        field.setStringValue(&NSString::from_str(initial_value));
-        field
-    }
-
-    fn create_action_button(&self, title: &str, action: Sel) -> Retained<NSButton> {
-        let mtm = self.mtm();
-
-        let button = NSButton::new(mtm);
-        button.setTitle(&NSString::from_str(title));
-        unsafe { button.setTarget(Some(self)) };
-        unsafe { button.setAction(Some(action)) };
-
-        button
     }
 
     fn create_action_buttons_ui(&self) -> Retained<NSStackView> {
@@ -225,6 +251,26 @@ impl SettingsViewController {
         if let Some(field) = self.ivars().font_weight_field.borrow().as_ref() {
             let value = field.stringValue().to_string();
             config.font_weight = value.parse::<u16>().ok();
+        }
+        if let Some(field) = self.ivars().active_indicator_color_field.borrow().as_ref() {
+            let value = field.stringValue().to_string();
+            let value = value.trim();
+            config.colors.active_indicator = if value.is_empty() {
+                None
+            } else {
+                color::parse_color(value).context("invalid active indicator color")?;
+                Some(value.to_string())
+            };
+        }
+        if let Some(field) = self.ivars().busy_indicator_color_field.borrow().as_ref() {
+            let value = field.stringValue().to_string();
+            let value = value.trim();
+            config.colors.busy_indicator = if value.is_empty() {
+                None
+            } else {
+                color::parse_color(value).context("invalid busy indicator color")?;
+                Some(value.to_string())
+            };
         }
         config.save()?;
         Ok(())

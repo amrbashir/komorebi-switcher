@@ -26,7 +26,7 @@ impl LayoutButtonIvars {
 
 define_class!(
     /// A Custom button representing a workspace in the status bar.
-    /// Displays an indicator for focused and non-empty workspaces.
+    /// Displays an indicator for active and busy workspaces.
     #[unsafe(super = NSButton)]
     #[thread_kind = MainThreadOnly]
     #[ivars = LayoutButtonIvars]
@@ -121,7 +121,7 @@ impl LayoutButton {
             .constraintGreaterThanOrEqualToConstant(24.0);
         height_constraint.setActive(true);
 
-        // Set background color based on focus state
+        // Set background color based on active state
         let bg_color = NSColor::clearColor().CGColor();
         let _: () = unsafe { msg_send![&layer, setBackgroundColor: &*bg_color] };
 

@@ -28,7 +28,7 @@ impl WorkspaceButtonIvars {
 
 define_class!(
     /// A Custom button representing a workspace in the status bar.
-    /// Displays an indicator for focused and non-empty workspaces.
+    /// Displays an indicator for active and busy workspaces.
     #[unsafe(super = NSButton)]
     #[thread_kind = MainThreadOnly]
     #[ivars = WorkspaceButtonIvars]
@@ -98,6 +98,8 @@ impl WorkspaceButton {
         mtm: MainThreadMarker,
         workspace: &crate::komorebi::Workspace,
         font: Option<&NSFont>,
+        active_indicator_color: Option<&str>,
+        busy_indicator_color: Option<&str>,
     ) -> Retained<Self> {
         // Create button
         let this = Self::alloc(mtm).set_ivars(WorkspaceButtonIvars::new(workspace.clone()));
@@ -131,7 +133,7 @@ impl WorkspaceButton {
         width_constraint.setActive(true);
         height_constraint.setActive(true);
 
-        // Set background color based on focus state
+        // Set background color based on active state
         let bg_color = if workspace.focused {
             NSColor::colorWithWhite_alpha(1.0, 0.1).CGColor()
         } else {
@@ -149,11 +151,19 @@ impl WorkspaceButton {
 
         // Set indicator color and visibility based on workspace state
         if workspace.focused {
-            let blue = NSColor::systemBlueColor().CGColor();
+            let color = active_indicator_color
+                .and_then(crate::macos::utils::ns_color_from_color)
+                .unwrap_or_else(NSColor::systemBlueColor)
+                .CGColor();
+            let blue = color;
             let _: () = unsafe { msg_send![&layer, setBackgroundColor: &*blue] };
             indicator.setHidden(false);
         } else if !workspace.is_empty {
-            let light_gray = NSColor::lightGrayColor().CGColor();
+            let color = busy_indicator_color
+                .and_then(crate::macos::utils::ns_color_from_color)
+                .unwrap_or_else(NSColor::lightGrayColor)
+                .CGColor();
+            let light_gray = color;
             let _: () = unsafe { msg_send![&layer, setBackgroundColor: &*light_gray] };
             indicator.setHidden(false);
         } else {

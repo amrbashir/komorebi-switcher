@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added indicator colors via `[colors]` and `[monitors.<id>.colors]`.
+
 ## [0.10.1] - 2026-02-26
 
 ### Fixed

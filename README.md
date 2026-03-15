@@ -39,6 +39,10 @@ or use the settings window accessible from the context menu.
 show_layout_button    = false
 hide_empty_workspaces = false
 
+[colors]
+active_indicator = "#4CC2FFCC"
+busy_indicator = "rgba(180, 173, 170, 0.6)"
+
 # Settings for each monitor (Windows only for now)
 #   Syntax is [monitors.<id>] where <id> is one of:
 #     - serial_number_id
@@ -55,6 +59,10 @@ x                     = 0
 y                     = 0
 width                 = 200      # Ignored if `auto_width` is enabled
 height                = 40       # Ignored if `auto_height` is enabled
+
+[monitors.0.colors]
+active_indicator = "#4CC2FFCC"          # Can be removed to use the global setting
+busy_indicator = "#B4ADAA80"       # Can be removed to use the global setting
 ```
 
 ## Development

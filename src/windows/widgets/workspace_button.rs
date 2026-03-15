@@ -3,7 +3,8 @@ use crate::komorebi::Workspace;
 pub struct WorkspaceButton<'a> {
     workspace: &'a Workspace,
     text_color: Option<egui::Color32>,
-    line_focused_color: Option<egui::Color32>,
+    line_active_color: Option<egui::Color32>,
+    line_busy_color: Option<egui::Color32>,
     dark_mode: Option<bool>,
 }
 
@@ -12,7 +13,8 @@ impl<'a> WorkspaceButton<'a> {
         Self {
             workspace,
             text_color: None,
-            line_focused_color: None,
+            line_active_color: None,
+            line_busy_color: None,
             dark_mode: None,
         }
     }
@@ -22,23 +24,18 @@ impl<'a> WorkspaceButton<'a> {
         self
     }
 
-    // pub fn text_color(mut self, olor: egui::Color32) -> Self {
-    //     self.text_color.replace(color);
-    //     self
-    // }
-
     pub fn text_color_opt(mut self, color: Option<egui::Color32>) -> Self {
         self.text_color = color;
         self
     }
 
-    // pub fn line_focused_color(mut self, color: egui::Color32) -> Self {
-    //     self.line_focused_color.replace(color);
-    //     self
-    // }
+    pub fn line_active_color_opt(mut self, color: Option<egui::Color32>) -> Self {
+        self.line_active_color = color;
+        self
+    }
 
-    pub fn line_focused_color_opt(mut self, color: Option<egui::Color32>) -> Self {
-        self.line_focused_color = color;
+    pub fn line_busy_color_opt(mut self, color: Option<egui::Color32>) -> Self {
+        self.line_busy_color = color;
         self
     }
 }
@@ -47,7 +44,7 @@ impl egui::Widget for WorkspaceButton<'_> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         const RADIUS: f32 = 4.0;
         const MIN_SIZE: egui::Vec2 = egui::vec2(28.0, 28.0);
-        const INDICATOR_FOCUSED_WIDTH: f32 = 14.0;
+        const INDICATOR_ACTIVE_WIDTH: f32 = 14.0;
         const INDICATOR_BASE_WIDTH: f32 = 6.0;
         const INDICATOR_HEIGHT: f32 = 3.5;
         const TEXT_PADDING: egui::Vec2 = egui::vec2(16.0, 8.0);
@@ -108,7 +105,7 @@ impl egui::Widget for WorkspaceButton<'_> {
 
         // animate width
         let target_line_width = if !response.is_pointer_button_down_on() && self.workspace.focused {
-            INDICATOR_FOCUSED_WIDTH
+            INDICATOR_ACTIVE_WIDTH
         } else {
             INDICATOR_BASE_WIDTH
         };
@@ -131,8 +128,20 @@ impl egui::Widget for WorkspaceButton<'_> {
             .with_min_y(rect.max.y - INDICATOR_HEIGHT);
 
         let color = if self.workspace.focused {
-            let c = self.line_focused_color.unwrap_or(egui::Color32::CYAN);
-            egui::Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), (opacity * 255.0) as u8)
+            let c = self.line_active_color.unwrap_or(egui::Color32::CYAN);
+            egui::Color32::from_rgba_unmultiplied(
+                c.r(),
+                c.g(),
+                c.b(),
+                (opacity * f32::from(c.a())) as u8,
+            )
+        } else if let Some(c) = self.line_busy_color {
+            egui::Color32::from_rgba_unmultiplied(
+                c.r(),
+                c.g(),
+                c.b(),
+                (opacity * f32::from(c.a())) as u8,
+            )
         } else if dark_mode {
             egui::Color32::from_rgba_unmultiplied(180, 173, 170, (opacity * 125.0) as u8)
         } else {
