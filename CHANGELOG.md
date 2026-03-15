@@ -5,6 +5,7 @@
 ### Added
 
 - Added indicator colors via `[colors]` and `[monitors.<id>.colors]`.
+- Added `font_family` and `font_weight` config options
 
 ## [0.10.1] - 2026-02-26
 
