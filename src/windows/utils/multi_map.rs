@@ -1,12 +1,12 @@
-// This is copied from the `multi-map` crate, which is licensed under the MIT license.
-// and modified to fit the context of this project.
+// This is copied from the `multi-map` crate, which is licensed under the MIT
+// license. and modified to fit the context of this project.
 //
 // Specifically at this commit https://github.com/rust-embedded-community/multi-map/blob/9f686b494853da68d232c1bb2801ba1cfdede6cd
 
 //! # multi-map
 //!
-//! `MultiMap` is like a `std::collection::HashMap`, but allows you to use either of
-//! two different keys to retrieve items.
+//! `MultiMap` is like a `std::collection::HashMap`, but allows you to use
+//! either of two different keys to retrieve items.
 //!
 //! The keys have two distinct types - `K1` and `K2` - which may be the same.
 //! Accessing on the primary `K1` key is via the usual `get`, `get_mut` and
@@ -20,7 +20,8 @@
 //! `MultiMap`, to keep them in sync.
 //!
 //! Using two `HashMap`s instead of one naturally brings a slight performance
-//! and memory penalty. Notably, indexing by `K2` requires two `HashMap` lookups.
+//! and memory penalty. Notably, indexing by `K2` requires two `HashMap`
+//! lookups.
 //!
 //! ```
 //! extern crate multi_map;
@@ -97,7 +98,8 @@ where
 
     /// Creates an empty MultiMap with the specified capacity.
     ///
-    /// The multi map will be able to hold at least `capacity` elements without reallocating. If `capacity` is 0, the multi map will not allocate.
+    /// The multi map will be able to hold at least `capacity` elements without
+    /// reallocating. If `capacity` is 0, the multi map will not allocate.
     pub fn with_capacity(capacity: usize) -> MultiMap<K1, K2, V> {
         MultiMap {
             value_map: HashMap::with_capacity(capacity),
@@ -169,8 +171,8 @@ where
         result
     }
 
-    /// Obtain a tuple of the secondary key and a mutable reference to the value,
-    /// using the primary key
+    /// Obtain a tuple of the secondary key and a mutable reference to the
+    /// value, using the primary key
     pub fn get_mut_with_key(&mut self, key: &K1) -> Option<(&K2, &mut V)> {
         let mut result = None;
         if let Some(pair) = self.value_map.get_mut(key) {
@@ -219,9 +221,9 @@ where
         result
     }
 
-    /// Returns true if the map contains a value for the specified key. The key may be any borrowed
-    /// form of the map's key type, but Hash and Eq on the borrowed form must match those for the
-    /// key type
+    /// Returns true if the map contains a value for the specified key. The key
+    /// may be any borrowed form of the map's key type, but Hash and Eq on
+    /// the borrowed form must match those for the key type
     ///
     /// ## Example
     /// ```
@@ -247,9 +249,9 @@ where
         self.value_map.contains_key(key)
     }
 
-    /// Returns true if the map contains a value for the specified alternative key. The key may be
-    /// any borrowed form of the map's key type, but Hash and Eq on the borrowed form must match
-    /// those for the key type
+    /// Returns true if the map contains a value for the specified alternative
+    /// key. The key may be any borrowed form of the map's key type, but
+    /// Hash and Eq on the borrowed form must match those for the key type
     ///
     /// ## Example
     /// ```
@@ -303,8 +305,8 @@ where
         }
     }
 
-    /// Iterate with mutability through all the values in the MultiMap in random order.
-    /// Note that the values
+    /// Iterate with mutability through all the values in the MultiMap in random
+    /// order. Note that the values
     /// are `(K2, V)` tuples, not `V`, as you would get with a HashMap.
     pub fn iter_mut(&mut self) -> IterMut<'_, K1, K2, V> {
         IterMut {
@@ -312,9 +314,11 @@ where
         }
     }
 
-    /// Iterate with mutability through all the values in the MultiMap in random order.
+    /// Iterate with mutability through all the values in the MultiMap in random
+    /// order.
     ///
-    /// Note that unlike `iter_mut`, this returns mutable references to the values only.
+    /// Note that unlike `iter_mut`, this returns mutable references to the
+    /// values only.
     pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
         self.value_map.values_mut().map(|v| &mut v.1)
     }
@@ -350,7 +354,8 @@ where
         std::cmp::max(self.value_map.len(), self.key_map.len())
     }
 
-    /// Clears the map, removing all key-value pairs, just like `HashMap::clear`.
+    /// Clears the map, removing all key-value pairs, just like
+    /// `HashMap::clear`.
     ///
     /// Keeps the allocated memory for reuse.
     ///
@@ -371,8 +376,8 @@ where
     /// Clears the map, returning an iterator over the primary key and the
     /// secondary key + value tuple. Keeps the allocated memory for reuse.
     ///
-    /// There's no `drain_alt` providing an iterator over secondary key and value,
-    /// but you can map the iterator as follows:
+    /// There's no `drain_alt` providing an iterator over secondary key and
+    /// value, but you can map the iterator as follows:
     /// ```
     /// use multi_map::MultiMap;
     ///
@@ -439,8 +444,8 @@ where
         }
     }
 
-    /// Removes an entry from the map given a secondary key, returning the stored
-    /// keys and value if the key was previously in the map.
+    /// Removes an entry from the map given a secondary key, returning the
+    /// stored keys and value if the key was previously in the map.
     ///
     /// The key may be any borrowed form of the map's key type, but
     /// [`Hash`] and [`Eq`] on the borrowed form *must* match those for
@@ -497,9 +502,9 @@ where
     /// down as much as possible while maintaining the internal rules
     /// and possibly leaving some space in accordance with the resize policy.
     ///
-    /// Note that in the general case the capacity is not *guaranteed* to shrink,
-    /// but a zero-length MultiMap should generally shrink to capacity zero.
-    /// ```
+    /// Note that in the general case the capacity is not *guaranteed* to
+    /// shrink, but a zero-length MultiMap should generally shrink to
+    /// capacity zero. ```
     /// # use multi_map::MultiMap;
     /// let mut map = MultiMap::<i32, &str, &str>::with_capacity(16);
     /// // This isn't guaranteed to be exactly 16
@@ -564,9 +569,8 @@ where
 /// values of the form (K2, V) instead of V.
 ///
 ///
-/// This `struct` is created by the [`iter`](`MultiMap::iter`) method on [`MultiMap`]. See its
-/// documentation for more.
-///
+/// This `struct` is created by the [`iter`](`MultiMap::iter`) method on
+/// [`MultiMap`]. See its documentation for more.
 #[derive(Clone)]
 pub struct Iter<'a, K1: 'a, K2: 'a, V: 'a> {
     base: hash_map::Iter<'a, K1, (K2, V)>,
@@ -574,18 +578,18 @@ pub struct Iter<'a, K1: 'a, K2: 'a, V: 'a> {
 
 /// An owning iterator over the entries of a `MultiMap`.
 ///
-/// This `struct` is created by the [`into_iter`](`IntoIterator::into_iter`) method on [`MultiMap`]
-/// (provided by the [`IntoIterator`] trait). See its documentation for more.
-///
+/// This `struct` is created by the [`into_iter`](`IntoIterator::into_iter`)
+/// method on [`MultiMap`] (provided by the [`IntoIterator`] trait). See its
+/// documentation for more.
 pub struct IntoIter<K1, K2, V> {
     base: hash_map::IntoIter<K1, (K2, V)>,
 }
 
 /// An mutable iterator over the entries of a `MultiMap`.
 ///
-/// This `struct` is created by the [`iter_mut`](`IntoIterator::iter_mut`) method on [`MultiMap`]
-/// (provided by the [`IterMut`] trait). See its documentation for more.
-///
+/// This `struct` is created by the [`iter_mut`](`IntoIterator::iter_mut`)
+/// method on [`MultiMap`] (provided by the [`IterMut`] trait). See its
+/// documentation for more.
 pub struct IterMut<'a, K1: 'a, K2: 'a, V: 'a> {
     base: hash_map::IterMut<'a, K1, (K2, V)>,
 }
@@ -609,7 +613,6 @@ where
     /// Creates a consuming iterator, that is, one that moves each key-value
     /// pair out of the map in arbitrary order. The map cannot be used after
     /// calling this.
-    ///
     fn into_iter(self) -> IntoIter<K1, K2, V> {
         IntoIter {
             base: self.value_map.into_iter(),

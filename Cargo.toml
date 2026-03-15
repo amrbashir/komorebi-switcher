@@ -32,6 +32,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
 rfd = "0.15.3"
 font-kit = "0.14.3"
+color = "0.3.2"
 
 [target."cfg(windows)".dependencies]
 winit = "0.30"

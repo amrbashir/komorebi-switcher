@@ -19,11 +19,16 @@ use crate::windows::context_menu::AppContextMenu;
 use crate::windows::egui_glue::{EguiView, EguiWindow};
 use crate::windows::registry;
 use crate::windows::taskbar::Taskbar;
+use crate::windows::utils::egui_color_from_color;
 use crate::windows::widgets::{LayoutButton, WorkspaceButton};
 
 mod host;
 
 impl App {
+    /// Creates the switcher window for the given monitor.
+    ///
+    /// The switcher consists of a host window (child of taskbar), and a winit
+    /// window as a child of the host and hosts the egui view.
     pub fn create_switcher_window(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -80,16 +85,12 @@ impl App {
     }
 }
 
-struct ContextMenuState {
-    menu: AppContextMenu,
-}
-
 pub struct SwitcherWindowView {
     config: Arc<RwLock<crate::config::Config>>,
     preview_config: Option<Config>,
     host: HWND,
     taskbar: Taskbar,
-    context_menu: ContextMenuState,
+    context_menu: AppContextMenu,
     monitor_state: crate::komorebi::Monitor,
     accent_light2_color: Option<egui::Color32>,
     accent_color: Option<egui::Color32>,
@@ -110,7 +111,7 @@ impl SwitcherWindowView {
             host,
             taskbar,
             monitor_state,
-            context_menu: ContextMenuState { menu: context_menu },
+            context_menu,
             accent_color: None,
             accent_light2_color: None,
             forgreound_color: None,
@@ -120,13 +121,19 @@ impl SwitcherWindowView {
             applied_font: None,
         };
 
+        // Update system colors initially.
         if let Err(e) = view.update_system_colors() {
             tracing::error!("Failed to get system colors: {e}");
         }
 
         Ok(view)
     }
+}
 
+/// Getters
+impl SwitcherWindowView {
+    /// Gets the effective config for the switcher, which is the preview config
+    /// if set, or the actual config otherwise.
     fn effective_config(&self) -> Config {
         self.preview_config.clone().unwrap_or_else(|| {
             let config = self.config.read().unwrap();
@@ -134,18 +141,46 @@ impl SwitcherWindowView {
         })
     }
 
-    fn show_context_menu(&self) {
-        tracing::debug!("Showing context menu");
-
-        let hwnd = self.host.0 as isize;
-        unsafe {
-            self.context_menu
-                .menu
-                .menu
-                .show_context_menu_for_hwnd(hwnd, None)
-        };
+    /// Gets the height of the taskbar.
+    /// Used for auto-sizing the switcher panel to match the taskbar height.
+    fn taskbar_height(&self) -> anyhow::Result<i32> {
+        let mut rect = RECT::default();
+        unsafe { GetClientRect(self.taskbar.hwnd, &mut rect) }?;
+        Ok(rect.bottom - rect.top)
     }
 
+    /// Determines if the system is in dark mode.
+    // FIXME: use egui internal dark mode detection
+    fn is_system_dark_mode(&self) -> bool {
+        self.forgreound_color
+            .map(|c| c == egui::Color32::WHITE)
+            .unwrap_or(false)
+    }
+
+    /// Gets the accent color to use for the switcher, based on the system
+    /// accent color and the current theme (light/dark mode).
+    fn accent_color(&self) -> Option<egui::Color32> {
+        if self.is_system_dark_mode() {
+            self.accent_light2_color
+        } else {
+            self.accent_color
+        }
+    }
+}
+
+/// Actions
+impl SwitcherWindowView {
+    /// Shows the context menu at the current mouse position.
+    ///
+    /// Used when right-clicking on the switcher panel.
+    fn show_context_menu(&self) {
+        let hwnd = self.host.0 as isize;
+        let menu = &self.context_menu.menu;
+        unsafe { menu.show_context_menu_for_hwnd(hwnd, None) };
+    }
+
+    /// Updates system colors from Windows settings, and stores them in the view
+    /// state.
     fn update_system_colors(&mut self) -> anyhow::Result<()> {
         let settings = UISettings::new()?;
 
@@ -164,24 +199,15 @@ impl SwitcherWindowView {
         Ok(())
     }
 
-    fn taskbar_height(&self) -> anyhow::Result<i32> {
-        let mut rect = RECT::default();
-        unsafe { GetClientRect(self.taskbar.hwnd, &mut rect) }?;
-        Ok(rect.bottom - rect.top)
-    }
-
-    const WORKSPACES_MARGIN: egui::Margin = egui::Margin::same(1);
-
+    /// Resizes the host window that contains the switcher panel to match the
+    /// given content rect.
     fn resize_host_to_rect(
         &mut self,
         rect: egui::Rect,
         ppp: f32,
-        config: &Config,
+        monitor_config: &crate::config::MonitorConfig,
     ) -> anyhow::Result<()> {
-        let monitor_config = config.get_monitor(&self.monitor_state.id);
-
-        // Add margins to rect and scale by ppp
-        let rect = rect + Self::WORKSPACES_MARGIN;
+        // Scale by pixels per point
         let rect = rect * ppp;
 
         let x = monitor_config.x;
@@ -232,8 +258,14 @@ impl SwitcherWindowView {
         Ok(())
     }
 
-    fn maybe_apply_font(&mut self, ctx: &egui::Context, config: &Config) {
-        let monitor_config = config.get_monitor(&self.monitor_state.id);
+    /// Applies the desired font to the egui context if it's not already
+    /// applied.
+    fn maybe_apply_font(
+        &mut self,
+        ctx: &egui::Context,
+        config: &Config,
+        monitor_config: &crate::config::MonitorConfig,
+    ) {
         let font_family = monitor_config
             .font_family
             .as_deref()
@@ -252,7 +284,8 @@ impl SwitcherWindowView {
         // Update applied font to avoid redundant updates next time
         self.applied_font = desired.clone();
 
-        // Load font data for the desired font, if specified. If loading fails, log a warning and fall back to default font.
+        // Load font data for the desired font, if specified. If loading fails, log a
+        // warning and fall back to default font.
         let font_data = desired.as_ref().and_then(|(family, weight)| {
             let font = crate::utils::find_font(family, *weight);
             let data = font.and_then(|f| f.copy_font_data());
@@ -265,6 +298,7 @@ impl SwitcherWindowView {
             data
         });
 
+        // Set font in egui context, or fall back to default.
         let mut fonts = egui::FontDefinitions::default();
         if let Some(data) = font_data {
             const SWITCHER_FONT_NAME: &str = "switcher_custom";
@@ -281,90 +315,132 @@ impl SwitcherWindowView {
         }
         ctx.set_fonts(fonts);
     }
+}
 
-    fn is_system_dark_mode(&self) -> bool {
-        // FIXME: use egui internal dark mode detection
-        self.forgreound_color
-            .map(|c| c == egui::Color32::WHITE)
-            .unwrap_or(false)
-    }
+/// UI
+impl SwitcherWindowView {
+    fn layout_button(&self, ui: &mut egui::Ui, focused_workspace: &crate::komorebi::Workspace) {
+        let btn = LayoutButton::new(&focused_workspace.layout)
+            .dark_mode(Some(self.is_system_dark_mode()))
+            .text_color_opt(self.forgreound_color);
 
-    fn line_focused_color(&self) -> Option<egui::Color32> {
-        if self.is_system_dark_mode() {
-            self.accent_light2_color
-        } else {
-            self.accent_color
+        if ui.add(btn).clicked() {
+            crate::komorebi::cycle_layout(CycleDirection::Next);
         }
     }
 
-    fn workspaces_row(&mut self, ui: &mut egui::Ui, config: &Config) -> egui::Response {
-        // show context menu on right click
-        if ui.input(|i| i.pointer.button_pressed(egui::PointerButton::Secondary)) {
-            self.show_context_menu();
+    fn workspace_button(
+        &self,
+        ui: &mut egui::Ui,
+        workspace: &crate::komorebi::Workspace,
+        monitor_config: &crate::config::MonitorConfig,
+        config: &Config,
+    ) {
+        // Determine active indicator colors,
+        // with monitor config taking precedence over global config,
+        // and falling back to accent color if not specified.
+        let active_indicator_color = match monitor_config.colors.active_indicator {
+            Some(ref c) => egui_color_from_color(c),
+            None => config
+                .colors
+                .active_indicator
+                .as_ref()
+                .and_then(|c| egui_color_from_color(c))
+                .or_else(|| self.accent_color()),
+        };
+
+        // Determine busy indicator color,
+        // with monitor config taking precedence over global config.
+        let busy_indicator_color = match monitor_config.colors.busy_indicator {
+            Some(ref c) => egui_color_from_color(c),
+            None => config
+                .colors
+                .busy_indicator
+                .as_ref()
+                .and_then(|c| egui_color_from_color(c)),
+        };
+
+        let btn = WorkspaceButton::new(workspace)
+            .dark_mode(Some(self.is_system_dark_mode()))
+            .line_active_color_opt(active_indicator_color)
+            .line_busy_color_opt(busy_indicator_color)
+            .text_color_opt(self.forgreound_color);
+
+        if ui.add(btn).clicked() {
+            crate::komorebi::change_workspace(self.monitor_state.index, workspace.index);
         }
-
-        ui.horizontal_centered(|ui| {
-            ui.scope(|ui| {
-                ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
-
-                let monitor_config = config.get_monitor(&self.monitor_state.id);
-                let hide_empty_workspaces = match monitor_config.hide_empty_workspaces {
-                    Some(hide) => hide,
-                    None => config.hide_empty_workspaces,
-                };
-
-                // show workspace buttons
-                for workspace in self.monitor_state.workspaces.iter() {
-                    if hide_empty_workspaces && workspace.is_empty && !workspace.focused {
-                        continue;
-                    }
-
-                    let btn = WorkspaceButton::new(workspace)
-                        .dark_mode(Some(self.is_system_dark_mode()))
-                        .line_focused_color_opt(self.line_focused_color())
-                        .text_color_opt(self.forgreound_color);
-
-                    if ui.add(btn).clicked() {
-                        crate::komorebi::change_workspace(
-                            self.monitor_state.index,
-                            workspace.index,
-                        );
-                    }
-                }
-
-                // show layout button for focused workspace
-                let show_layout_button = match monitor_config.show_layout_button {
-                    Some(show) => show,
-                    None => config.show_layout_button,
-                };
-                if show_layout_button {
-                    if let Some(focused_ws) = self.monitor_state.focused_workspace() {
-                        ui.add(egui::Label::new("|"));
-
-                        let btn = LayoutButton::new(&focused_ws.layout)
-                            .dark_mode(Some(self.is_system_dark_mode()))
-                            .text_color_opt(self.forgreound_color);
-
-                        if ui.add(btn).clicked() {
-                            crate::komorebi::cycle_layout(CycleDirection::Next);
-                        }
-                    }
-                }
-            })
-        })
-        .response
     }
 
-    fn transparent_panel(&self, ctx: &egui::Context) -> egui::CentralPanel {
+    /// Main UI elements, workspaces buttons, layout button ...etc
+    fn switcher_ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        config: &Config,
+        monitor_config: &crate::config::MonitorConfig,
+    ) {
+        // Set spacing between buttons
+        ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
+
+        // Determine whether to show or hide empty workspaces
+        let hide_empty_workspaces = match monitor_config.hide_empty_workspaces {
+            Some(hide) => hide,
+            None => config.hide_empty_workspaces,
+        };
+
+        // Draw a button for each workspace
+        for workspace in self.monitor_state.workspaces.iter() {
+            //Skip empty and unfocused workspaces if the setting is enabled
+            if hide_empty_workspaces && workspace.is_empty && !workspace.focused {
+                continue;
+            }
+
+            self.workspace_button(ui, workspace, monitor_config, config);
+        }
+
+        // Show layout button for focused workspace if the setting is enabled
+        let show_layout_button = match monitor_config.show_layout_button {
+            Some(show) => show,
+            None => config.show_layout_button,
+        };
+        if show_layout_button {
+            if let Some(focused_ws) = self.monitor_state.focused_workspace() {
+                ui.add(egui::Label::new("|"));
+
+                self.layout_button(ui, focused_ws);
+            }
+        }
+    }
+
+    /// Transparent panel containing the UI elements horizontally with some
+    /// margin around it.
+    fn switcher_panel(
+        &mut self,
+        ctx: &egui::Context,
+        config: &Config,
+        monitor_config: &crate::config::MonitorConfig,
+    ) -> egui::InnerResponse<egui::Rect> {
+        // Set transparent panel visual for the switcher.
         let visuals = egui::Visuals {
             panel_fill: egui::Color32::TRANSPARENT,
             ..egui::Visuals::dark()
         };
         ctx.set_visuals(visuals);
 
-        let frame = egui::Frame::central_panel(&ctx.style()).inner_margin(Self::WORKSPACES_MARGIN);
+        // Create a frame with margins
+        let frame = egui::Frame::central_panel(&ctx.style());
 
-        egui::CentralPanel::default().frame(frame)
+        // Create central panel with the margined frame
+        let total_margin = frame.total_margin();
+        egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
+            let response = ui.horizontal_centered(|ui| {
+                self.switcher_ui(ui, config, monitor_config);
+                ui.min_rect()
+            });
+
+            // Use the content rect from inside the horizontal layout,
+            // expanded by the frame's total margin (inner + outer + stroke).
+            response.inner.expand2(total_margin.right_bottom())
+        })
     }
 }
 
@@ -386,8 +462,8 @@ impl EguiView for SwitcherWindowView {
             }
 
             AppMessage::PreviewConfig(config) => self.preview_config = Some(config.clone()),
-
             AppMessage::ClearPreviewConfig => self.preview_config = None,
+
             AppMessage::SystemSettingsChanged => self.update_system_colors()?,
 
             AppMessage::DpiChanged => {
@@ -402,17 +478,27 @@ impl EguiView for SwitcherWindowView {
         Ok(())
     }
 
+    // Main render loop
     fn update(&mut self, ctx: &egui::Context) {
+        // Show context menu on right click
+        if ctx.input(|i| i.pointer.button_pressed(egui::PointerButton::Secondary)) {
+            self.show_context_menu();
+        }
+
+        // Load effective config.
         let config = self.effective_config();
-        self.maybe_apply_font(ctx, &config);
+        let monitor_config = config.get_monitor(&self.monitor_state.id);
 
-        self.transparent_panel(ctx).show(ctx, |ui| {
-            let response = self.workspaces_row(ui, &config);
+        // Apply font
+        self.maybe_apply_font(ctx, &config, &monitor_config);
 
-            if let Err(e) = self.resize_host_to_rect(response.rect, ctx.pixels_per_point(), &config)
-            {
-                tracing::error!("Failed to resize host to rect: {e}");
-            }
-        });
+        // Draw ui
+        let response = self.switcher_panel(ctx, &config, &monitor_config);
+
+        // Resize host to match the content rect.
+        let ppp = ctx.pixels_per_point();
+        if let Err(e) = self.resize_host_to_rect(response.inner, ppp, &monitor_config) {
+            tracing::error!("Failed to resize host to rect: {e}");
+        }
     }
 }

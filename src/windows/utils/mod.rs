@@ -60,3 +60,13 @@ impl Iterator for TopLevelWindowsIterator {
         }
     }
 }
+
+pub fn egui_color_from_color(color: &str) -> Option<egui::Color32> {
+    let rgba = color::parse_color(color)
+        .ok()?
+        .to_alpha_color::<color::Srgb>()
+        .to_rgba8();
+    Some(egui::Color32::from_rgba_unmultiplied(
+        rgba.r, rgba.g, rgba.b, rgba.a,
+    ))
+}
