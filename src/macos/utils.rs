@@ -1,3 +1,6 @@
+use objc2::rc::Retained;
+use objc2_app_kit::NSColor;
+
 pub fn ns_color_from_color(color: &str) -> Option<Retained<NSColor>> {
     let rgba = color::parse_color(color)
         .ok()?
