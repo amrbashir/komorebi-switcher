@@ -80,7 +80,7 @@ impl egui::Widget for WorkspaceButton<'_> {
         let painter = ui.painter();
 
         // draw background
-        if response.hovered() || self.workspace.focused {
+        if response.hovered() {
             let color = if dark_mode {
                 egui::Color32::from_rgba_unmultiplied(255, 255, 255, 1)
             } else {
