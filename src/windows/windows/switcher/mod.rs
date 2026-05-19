@@ -393,7 +393,9 @@ impl SwitcherWindowView {
             .monitor_state
             .workspaces
             .iter()
-            .filter(|workspace| !(hide_empty_workspaces && workspace.is_empty && !workspace.focused))
+            .filter(|workspace| {
+                !(hide_empty_workspaces && workspace.is_empty && !workspace.focused)
+            })
             .collect::<Vec<_>>();
 
         let uniform_width = {
