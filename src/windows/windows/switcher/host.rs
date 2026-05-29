@@ -33,7 +33,11 @@ pub unsafe fn create_host(
             ..Default::default()
         };
 
-        assert_ne!(unsafe { RegisterClassW(&wc) }, 0, "Failed to register host window class");
+        assert_ne!(
+            unsafe { RegisterClassW(&wc) },
+            0,
+            "Failed to register host window class"
+        );
     });
 
     let userdata = WndProcUserData { proxy };

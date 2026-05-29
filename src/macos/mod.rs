@@ -16,7 +16,7 @@ use objc2_foundation::{
 
 use self::workspace_button::WorkspaceButton;
 use self::workspaces_stack_view::WorkspacesStackView;
-use crate::config::{Config, ResolvedMonitorConfig};
+use crate::config::Config;
 use crate::macos::layout_button::LayoutButton;
 use crate::macos::windows::settings::SettingsWindowController;
 
