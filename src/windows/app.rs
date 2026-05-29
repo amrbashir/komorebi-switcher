@@ -81,16 +81,24 @@ impl App {
     }
 
     fn create_switchers(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
+        let missing_monitors = self
+            .komorebi_state
+            .monitors
+            .clone()
+            .into_iter()
+            .filter(|monitor| !self.windows.contains_key_alt(&Some(monitor.id.clone())))
+            .collect::<Vec<_>>();
+
+        if missing_monitors.is_empty() {
+            return Ok(());
+        }
+
         let taskbars = crate::windows::taskbar::all();
 
         tracing::debug!("Found {} taskbars: {taskbars:?}", taskbars.len());
 
-        for monitor in self.komorebi_state.monitors.clone().into_iter() {
-            // skip already existing window for this monitor
+        for monitor in missing_monitors {
             let monitor_id = monitor.id.clone();
-            if self.windows.contains_key_alt(&Some(monitor_id.clone())) {
-                continue;
-            }
 
             let Some(taskbar) = taskbars.iter().find(|tb| monitor.rect.contains(tb.rect)) else {
                 tracing::warn!(
@@ -211,20 +219,25 @@ impl ApplicationHandler<AppMessage> for App {
         window_id: WindowId,
         event: WindowEvent,
     ) {
-        if event == WindowEvent::Destroyed {
-            tracing::info!("Window {window_id:?} destroyed");
-            self.windows.remove(&window_id);
-            return;
-        }
+        match event {
+            WindowEvent::CloseRequested => {
+                tracing::info!("Window {window_id:?} close requested");
+                self.windows.remove(&window_id);
 
-        if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
-            tracing::info!("Closing window {window_id:?}");
-            self.windows.remove(&window_id);
-
-            if self.windows.is_empty() {
-                tracing::info!("Exiting event loop");
-                event_loop.exit();
+                if self.windows.is_empty() {
+                    tracing::info!("Exiting event loop");
+                    event_loop.exit();
+                }
+                return;
             }
+
+            WindowEvent::Destroyed => {
+                tracing::info!("Window {window_id:?} destroyed");
+                self.windows.remove(&window_id);
+                return;
+            }
+
+            _ => {}
         }
 
         let Some(window) = self.windows.get_mut(&window_id) else {

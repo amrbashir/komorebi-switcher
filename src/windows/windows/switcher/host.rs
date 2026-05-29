@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::System::LibraryLoader::*;
@@ -13,6 +15,8 @@ const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher-debug::host");
 #[cfg(not(debug_assertions))]
 const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher::host");
 
+static HOST_CLASS_REGISTERED: OnceLock<()> = OnceLock::new();
+
 pub unsafe fn create_host(
     taskbar_hwnd: HWND,
     proxy: EventLoopProxy<AppMessage>,
@@ -20,20 +24,26 @@ pub unsafe fn create_host(
 ) -> anyhow::Result<HWND> {
     let hinstance = unsafe { GetModuleHandleW(None) }?;
 
-    let mut rect = RECT::default();
-    GetClientRect(taskbar_hwnd, &mut rect)?;
+    HOST_CLASS_REGISTERED.get_or_init(|| {
+        let wc = WNDCLASSW {
+            hInstance: hinstance.into(),
+            lpszClassName: HOST_CLASSNAME,
+            style: CS_HREDRAW | CS_VREDRAW,
+            lpfnWndProc: Some(wndproc_host),
+            ..Default::default()
+        };
 
-    let wc = WNDCLASSW {
-        hInstance: hinstance.into(),
-        lpszClassName: HOST_CLASSNAME,
-        style: CS_HREDRAW | CS_VREDRAW,
-        lpfnWndProc: Some(wndproc_host),
-        ..Default::default()
-    };
-
-    RegisterClassW(&wc);
+        assert_ne!(
+            unsafe { RegisterClassW(&wc) },
+            0,
+            "Failed to register host window class"
+        );
+    });
 
     let userdata = WndProcUserData { proxy };
+
+    let mut rect = RECT::default();
+    GetClientRect(taskbar_hwnd, &mut rect)?;
 
     let height = if monitor_config.auto_height {
         rect.bottom - rect.top

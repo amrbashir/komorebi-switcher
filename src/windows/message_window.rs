@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::sync::{LazyLock, OnceLock};
 
 use windows::core::*;
 use windows::Win32::Foundation::*;
@@ -16,6 +16,8 @@ const MESSAGE_WINDOW_CLASSNAME: PCWSTR = w!("komorebi-switcher::message-window")
 static WM_TASKBARCREATED: LazyLock<u32> =
     LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("TaskbarCreated")) });
 
+static MESSAGE_CLASS_REGISTERED: OnceLock<()> = OnceLock::new();
+
 struct WndProcUserData {
     proxy: EventLoopProxy<AppMessage>,
 }
@@ -29,14 +31,20 @@ impl WndProcUserData {
 pub unsafe fn create(proxy: EventLoopProxy<AppMessage>) -> anyhow::Result<HWND> {
     let hinstance = GetModuleHandleW(None)?;
 
-    let wc = WNDCLASSW {
-        hInstance: hinstance.into(),
-        lpszClassName: MESSAGE_WINDOW_CLASSNAME,
-        lpfnWndProc: Some(wndproc_message_window),
-        ..Default::default()
-    };
+    MESSAGE_CLASS_REGISTERED.get_or_init(|| {
+        let wc = WNDCLASSW {
+            hInstance: hinstance.into(),
+            lpszClassName: MESSAGE_WINDOW_CLASSNAME,
+            lpfnWndProc: Some(wndproc_message_window),
+            ..Default::default()
+        };
 
-    RegisterClassW(&wc);
+        assert_ne!(
+            unsafe { RegisterClassW(&wc) },
+            0,
+            "Failed to register message window class"
+        );
+    });
 
     let userdata = WndProcUserData { proxy };
 

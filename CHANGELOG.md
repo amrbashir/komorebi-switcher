@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-05-19
+
+### Fixed
+
+- Fixed Windows switcher stalls during rapid komorebi workspace and window state updates.
+- Reduced redundant taskbar enumeration and coalesced bursty komorebi notifications before updating the UI.
+
 ### Added
 
 - Added indicator colors via `[colors]` and `[monitors.<id>.colors]`.

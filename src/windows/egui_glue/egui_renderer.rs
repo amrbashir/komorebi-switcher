@@ -68,8 +68,14 @@ impl EguiRenderer {
         window_surface_view: &wgpu::TextureView,
         screen_descriptor: egui_wgpu::ScreenDescriptor,
     ) {
+        debug_assert!(
+            self.frame_started,
+            "begin_frame must be called before end_frame_and_draw can be called!"
+        );
+
         if !self.frame_started {
-            panic!("begin_frame must be called before end_frame_and_draw can be called!");
+            tracing::error!("end_frame_and_draw called without begin_frame");
+            return;
         }
 
         let full_output = self.state.egui_ctx().end_pass();
