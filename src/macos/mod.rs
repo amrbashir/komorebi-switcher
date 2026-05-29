@@ -16,7 +16,7 @@ use objc2_foundation::{
 
 use self::workspace_button::WorkspaceButton;
 use self::workspaces_stack_view::WorkspacesStackView;
-use crate::config::Config;
+use crate::config::{Config, ResolvedMonitorConfig};
 use crate::macos::layout_button::LayoutButton;
 use crate::macos::windows::settings::SettingsWindowController;
 
@@ -84,10 +84,11 @@ define_class!(
             let config = Config::load().unwrap_or_default();
 
             // Resolve custom font lazily once at startup.
-            let custom_font = config.font_family.as_deref().and_then(|family| {
-                let weight = config.font_weight.unwrap_or(400);
+            let resolved = config.resolved_monitor_config("");
+            let custom_font = resolved.font_family.as_deref().and_then(|family| {
                 let size = NSFont::systemFontOfSize(0.0).pointSize();
-                let postscript_name = crate::utils::find_font(family, weight)?.postscript_name()?;
+                let postscript_name =
+                    crate::utils::find_font(family, resolved.font_weight)?.postscript_name()?;
                 NSFont::fontWithName_size(&NSString::from_str(&postscript_name), size)
             });
             let _ = self.ivars().custom_font.set(custom_font);
@@ -139,6 +140,7 @@ impl AppDelegate {
         let stack_view = self.ivars().ns_stack_view.get().unwrap();
         let mut views = self.ivars().buttons.borrow_mut();
         let config = self.ivars().config.get().unwrap();
+        let resolved = config.resolved_monitor_config("");
 
         for button in views.iter() {
             button.removeFromSuperview();
@@ -152,11 +154,9 @@ impl AppDelegate {
 
         // Use the cached resolved custom font
         let custom_font = self.ivars().custom_font.get().and_then(|f| f.as_deref());
-        let active_indicator_color = config.colors.active_indicator.as_deref();
-        let busy_indicator_color = config.colors.busy_indicator.as_deref();
 
         for workspace in &monitor.workspaces {
-            if config.hide_empty_workspaces && workspace.is_empty && !workspace.focused {
+            if resolved.hide_empty_workspaces && workspace.is_empty && !workspace.focused {
                 continue;
             }
 
@@ -164,14 +164,14 @@ impl AppDelegate {
                 mtm,
                 workspace,
                 custom_font,
-                active_indicator_color,
-                busy_indicator_color,
+                resolved.active_indicator.as_deref(),
+                resolved.busy_indicator.as_deref(),
             );
             stack_view.addArrangedSubview(&workspace_button);
             views.push(workspace_button.downcast().unwrap());
         }
 
-        if config.show_layout_button {
+        if resolved.show_layout_button {
             if let Some(focused_ws) = monitor.focused_workspace() {
                 let separator = NSTextField::labelWithString(ns_string!("|"), mtm);
                 separator.setAlignment(NSTextAlignment::Center);
