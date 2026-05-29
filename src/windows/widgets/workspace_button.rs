@@ -7,6 +7,7 @@ pub struct WorkspaceButton<'a> {
     line_busy_color: Option<egui::Color32>,
     width: Option<f32>,
     dark_mode: Option<bool>,
+    highlight_focused: Option<bool>,
 }
 
 impl<'a> WorkspaceButton<'a> {
@@ -18,6 +19,7 @@ impl<'a> WorkspaceButton<'a> {
             line_busy_color: None,
             width: None,
             dark_mode: None,
+            highlight_focused: None,
         }
     }
 
@@ -43,6 +45,11 @@ impl<'a> WorkspaceButton<'a> {
 
     pub fn width_opt(mut self, width: Option<f32>) -> Self {
         self.width = width;
+        self
+    }
+
+    pub fn highlight_focused_opt(mut self, highlight_focused: Option<bool>) -> Self {
+        self.highlight_focused = highlight_focused;
         self
     }
 }
@@ -80,7 +87,8 @@ impl egui::Widget for WorkspaceButton<'_> {
         let painter = ui.painter();
 
         // draw background
-        if response.hovered() || self.workspace.focused {
+        let highlight_focused = self.highlight_focused.unwrap_or(true);
+        if response.hovered() || (highlight_focused && self.workspace.focused) {
             let color = if dark_mode {
                 egui::Color32::from_rgba_unmultiplied(255, 255, 255, 1)
             } else {

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct ResolvedMonitorConfig {
     pub show_layout_button: bool,
     pub hide_empty_workspaces: bool,
+    pub highlight_focused_workspace: bool,
     pub font_family: Option<String>,
     pub font_weight: u16,
     pub active_indicator: Option<String>,
@@ -50,6 +51,9 @@ pub struct MonitorConfig {
     pub hide_empty_workspaces: Option<bool>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub highlight_focused_workspace: Option<bool>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_family: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_weight: Option<u16>,
@@ -78,6 +82,7 @@ impl Default for MonitorConfig {
         Self {
             show_layout_button: None,
             hide_empty_workspaces: None,
+            highlight_focused_workspace: None,
             font_family: None,
             font_weight: None,
             colors: ColorsConfig::default(),
@@ -97,6 +102,9 @@ pub struct Config {
     pub show_layout_button: bool,
     #[serde(default)]
     pub hide_empty_workspaces: bool,
+
+    #[serde(default = "default_true")]
+    pub highlight_focused_workspace: bool,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_family: Option<String>,
@@ -189,6 +197,10 @@ impl Config {
             .hide_empty_workspaces
             .unwrap_or(self.hide_empty_workspaces);
 
+        let highlight_focused_workspace = mc
+            .highlight_focused_workspace
+            .unwrap_or(self.highlight_focused_workspace);
+
         let font_family = mc.font_family.or(self.font_family.clone());
         let font_weight = mc.font_weight.or(self.font_weight).unwrap_or(400);
 
@@ -204,6 +216,7 @@ impl Config {
         ResolvedMonitorConfig {
             show_layout_button,
             hide_empty_workspaces,
+            highlight_focused_workspace,
             font_family,
             font_weight,
             active_indicator,

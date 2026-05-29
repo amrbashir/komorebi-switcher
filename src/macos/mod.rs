@@ -166,6 +166,7 @@ impl AppDelegate {
                 custom_font,
                 resolved.active_indicator.as_deref(),
                 resolved.busy_indicator.as_deref(),
+                resolved.highlight_focused_workspace,
             );
             stack_view.addArrangedSubview(&workspace_button);
             views.push(workspace_button.downcast().unwrap());
