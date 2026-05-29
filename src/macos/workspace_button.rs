@@ -100,6 +100,7 @@ impl WorkspaceButton {
         font: Option<&NSFont>,
         active_indicator_color: Option<&str>,
         busy_indicator_color: Option<&str>,
+        highlight_focused: bool,
     ) -> Retained<Self> {
         // Create button
         let this = Self::alloc(mtm).set_ivars(WorkspaceButtonIvars::new(workspace.clone()));
@@ -134,7 +135,7 @@ impl WorkspaceButton {
         height_constraint.setActive(true);
 
         // Set background color based on active state
-        let bg_color = if workspace.focused {
+        let bg_color = if highlight_focused && workspace.focused {
             NSColor::colorWithWhite_alpha(1.0, 0.1).CGColor()
         } else {
             NSColor::clearColor().CGColor()

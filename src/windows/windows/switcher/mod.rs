@@ -357,6 +357,7 @@ impl SwitcherWindowView {
             .line_active_color_opt(active_indicator_color)
             .line_busy_color_opt(busy_indicator_color)
             .width_opt(uniform_width)
+            .highlight_focused_opt(Some(resolved.highlight_focused_workspace))
             .text_color_opt(self.forgreound_color);
 
         if ui.add(btn).clicked() {
