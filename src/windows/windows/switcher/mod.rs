@@ -272,11 +272,7 @@ impl SwitcherWindowView {
 
     /// Applies the desired font to the egui context if it's not already
     /// applied.
-    fn maybe_apply_font(
-        &mut self,
-        ctx: &egui::Context,
-        resolved: &ResolvedMonitorConfig,
-    ) {
+    fn maybe_apply_font(&mut self, ctx: &egui::Context, resolved: &ResolvedMonitorConfig) {
         let font_family = resolved.font_family.as_deref();
         let font_weight = resolved.font_weight;
 
@@ -365,11 +361,7 @@ impl SwitcherWindowView {
     }
 
     /// Main UI elements, workspaces buttons, layout button ...etc
-    fn switcher_ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        resolved: &ResolvedMonitorConfig,
-    ) {
+    fn switcher_ui(&mut self, ui: &mut egui::Ui, resolved: &ResolvedMonitorConfig) {
         ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
 
         let hide_empty_workspaces = resolved.hide_empty_workspaces;
