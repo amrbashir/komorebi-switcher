@@ -335,6 +335,7 @@ impl SwitcherWindowView {
         workspace: &crate::komorebi::Workspace,
         monitor_config: &crate::config::MonitorConfig,
         config: &Config,
+        uniform_width: Option<f32>,
     ) {
         // Determine active indicator colors,
         // with monitor config taking precedence over global config,
@@ -364,6 +365,7 @@ impl SwitcherWindowView {
             .dark_mode(Some(self.is_system_dark_mode()))
             .line_active_color_opt(active_indicator_color)
             .line_busy_color_opt(busy_indicator_color)
+            .width_opt(uniform_width)
             .text_color_opt(self.forgreound_color);
 
         if ui.add(btn).clicked() {
@@ -387,14 +389,37 @@ impl SwitcherWindowView {
             None => config.hide_empty_workspaces,
         };
 
-        // Draw a button for each workspace
-        for workspace in self.monitor_state.workspaces.iter() {
-            //Skip empty and unfocused workspaces if the setting is enabled
-            if hide_empty_workspaces && workspace.is_empty && !workspace.focused {
-                continue;
-            }
+        let visible_workspaces = self
+            .monitor_state
+            .workspaces
+            .iter()
+            .filter(|workspace| !(hide_empty_workspaces && workspace.is_empty && !workspace.focused))
+            .collect::<Vec<_>>();
 
-            self.workspace_button(ui, workspace, monitor_config, config);
+        let uniform_width = {
+            const MIN_WIDTH: f32 = 28.0;
+            const HORIZONTAL_TEXT_PADDING: f32 = 16.0;
+
+            let max_text_width = visible_workspaces
+                .iter()
+                .map(|workspace| {
+                    ui.painter()
+                        .layout_no_wrap(
+                            workspace.name.clone(),
+                            egui::FontId::default(),
+                            egui::Color32::TRANSPARENT,
+                        )
+                        .rect
+                        .width()
+                })
+                .fold(0.0, f32::max);
+
+            Some((max_text_width + HORIZONTAL_TEXT_PADDING).max(MIN_WIDTH))
+        };
+
+        // Draw a button for each workspace
+        for workspace in visible_workspaces {
+            self.workspace_button(ui, workspace, monitor_config, config, uniform_width);
         }
 
         // Show layout button for focused workspace if the setting is enabled
