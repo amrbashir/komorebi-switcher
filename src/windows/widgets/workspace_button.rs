@@ -5,6 +5,7 @@ pub struct WorkspaceButton<'a> {
     text_color: Option<egui::Color32>,
     line_active_color: Option<egui::Color32>,
     line_busy_color: Option<egui::Color32>,
+    width: Option<f32>,
     dark_mode: Option<bool>,
 }
 
@@ -15,6 +16,7 @@ impl<'a> WorkspaceButton<'a> {
             text_color: None,
             line_active_color: None,
             line_busy_color: None,
+            width: None,
             dark_mode: None,
         }
     }
@@ -36,6 +38,11 @@ impl<'a> WorkspaceButton<'a> {
 
     pub fn line_busy_color_opt(mut self, color: Option<egui::Color32>) -> Self {
         self.line_busy_color = color;
+        self
+    }
+
+    pub fn width_opt(mut self, width: Option<f32>) -> Self {
+        self.width = width;
         self
     }
 }
@@ -63,7 +70,10 @@ impl egui::Widget for WorkspaceButton<'_> {
             .painter()
             .layout_no_wrap(text, font_id.clone(), text_color);
 
-        let size = MIN_SIZE.max(text_galley.rect.size() + TEXT_PADDING);
+        let mut size = MIN_SIZE.max(text_galley.rect.size() + TEXT_PADDING);
+        if let Some(width) = self.width {
+            size.x = size.x.max(width);
+        }
 
         let (rect, response) = ui.allocate_at_least(size, egui::Sense::CLICK | egui::Sense::HOVER);
 
