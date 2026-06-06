@@ -15,7 +15,6 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   build-windows:
@@ -52,58 +51,25 @@ jobs:
           path: target/debug/komorebi-switcher
           overwrite: true
 
-  post-comment:
+  upload-pr-meta:
+    if: github.event_name == 'pull_request'
     needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v7
-        if: github.event_name == 'pull_request'
+      - name: Write PR metadata
+        run: |
+          mkdir -p pr-meta
+          cat > pr-meta/pr-meta.json <<EOF
+          {
+            "pr_number": "${{ github.event.number }}",
+            "commit_sha": "${{ github.event.pull_request.head.sha }}",
+            "windows_artifact_id": "${{ needs.build-windows.outputs.artifact-id }}",
+            "macos_artifact_id": "${{ needs.build-macos.outputs.artifact-id }}"
+          }
+          EOF
+
+      - uses: actions/upload-artifact@v4
         with:
-            script: |
-              // Build comment components
-              const commitSha = '${{ github.event.pull_request.head.sha }}';
-              const prNumber = '${{ github.event.number }}';
-              const repository = '${{ github.repository }}';
-              const runId = '${{ github.run_id }}';
-              
-              const windowsArtifactId = '${{ needs.build-windows.outputs.artifact-id }}';
-              const windowsArtifactName = `komorebi-switcher-windows-pr-${prNumber}-${commitSha}.zip`;
-              const windowsdownloadUrl = `https://github.com/${repository}/actions/runs/${runId}/artifacts/${windowsArtifactId}`;
-              const windowsLink = `- Windows: [${windowsArtifactName}](${windowsdownloadUrl})`;
-
-              const macosArtifactId = '${{ needs.build-macos.outputs.artifact-id }}';
-              const macosArtifactName = `komorebi-switcher-macos-pr-${prNumber}-${commitSha}.zip`;
-              const macosdownloadUrl = `https://github.com/${repository}/actions/runs/${runId}/artifacts/${macosArtifactId}`;
-              const macosLink = `- macOS: [${macosArtifactName}](${macosdownloadUrl})`;
-
-              const commentBody = "🎉 Build successful!" + "\n" + windowsLink + "\n" + macosLink;
-              
-              // Check for existing comment from this bot
-              const comments = await github.rest.issues.listComments({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo
-              });
-              
-              const botComment = comments.data.find(comment => 
-                comment.user.login === 'github-actions[bot]' && 
-                comment.body.includes('🎉 Build successful!')
-              );
-              
-              if (botComment) {
-                // Update existing comment
-                await github.rest.issues.updateComment({
-                  comment_id: botComment.id,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body: commentBody
-                });
-              } else {
-                // Create new comment
-                await github.rest.issues.createComment({
-                  issue_number: context.issue.number,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body: commentBody
-                });
-              }
+          name: pr-meta
+          path: pr-meta/
+          overwrite: true
