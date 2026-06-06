@@ -81,16 +81,24 @@ impl App {
     }
 
     fn create_switchers(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
+        let missing_monitors = self
+            .komorebi_state
+            .monitors
+            .clone()
+            .into_iter()
+            .filter(|monitor| !self.windows.contains_key_alt(&Some(monitor.id.clone())))
+            .collect::<Vec<_>>();
+
+        if missing_monitors.is_empty() {
+            return Ok(());
+        }
+
         let taskbars = crate::windows::taskbar::all();
 
         tracing::debug!("Found {} taskbars: {taskbars:?}", taskbars.len());
 
-        for monitor in self.komorebi_state.monitors.clone().into_iter() {
-            // skip already existing window for this monitor
+        for monitor in missing_monitors {
             let monitor_id = monitor.id.clone();
-            if self.windows.contains_key_alt(&Some(monitor_id.clone())) {
-                continue;
-            }
 
             let Some(taskbar) = taskbars.iter().find(|tb| monitor.rect.contains(tb.rect)) else {
                 tracing::warn!(

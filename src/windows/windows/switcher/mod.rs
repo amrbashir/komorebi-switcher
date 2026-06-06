@@ -387,6 +387,7 @@ impl SwitcherWindowView {
             None => config.hide_empty_workspaces,
         };
 
+
         // Draw a button for each workspace
         for workspace in self.monitor_state.workspaces.iter() {
             //Skip empty and unfocused workspaces if the setting is enabled

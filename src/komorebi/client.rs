@@ -4,6 +4,7 @@ use std::io::{BufReader, Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::mpsc;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -121,6 +122,7 @@ pub enum KSocketMessage {
 #[derive(Debug, strum::Display, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum KSocketEvent {
+    AddSubscriberSocket,
     FocusWorkspaceNumber,
     FocusMonitorNumber,
     FocusMonitorWorkspaceNumber,
@@ -173,6 +175,7 @@ pub struct KNotification {
 }
 
 const KOMOREBI_SOCK: &str = "komorebi.sock";
+const SOCKET_TIMEOUT: Duration = Duration::from_secs(1);
 
 fn komorebi_data_dir() -> anyhow::Result<Rc<PathBuf>> {
     thread_local! {
@@ -190,11 +193,28 @@ fn komorebi_data_dir() -> anyhow::Result<Rc<PathBuf>> {
     })
 }
 
+fn connect(socket: PathBuf) -> anyhow::Result<UnixStream> {
+    let (tx, rx) = mpsc::sync_channel(1);
+
+    std::thread::spawn(move || {
+        let _ = tx.send(UnixStream::connect(socket));
+    });
+
+    rx.recv_timeout(SOCKET_TIMEOUT)
+        .map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "komorebi socket connect timed out",
+            )
+        })?
+        .map_err(Into::into)
+}
+
 pub fn send_message(message: &KSocketMessage) -> anyhow::Result<()> {
     let socket = komorebi_data_dir()?.join(KOMOREBI_SOCK);
 
-    let mut stream = UnixStream::connect(socket)?;
-    stream.set_write_timeout(Some(Duration::from_secs(1)))?;
+    let mut stream = connect(socket)?;
+    stream.set_write_timeout(Some(SOCKET_TIMEOUT))?;
     stream.write_all(serde_json::to_string(message)?.as_bytes())?;
 
     Ok(())
@@ -203,9 +223,9 @@ pub fn send_message(message: &KSocketMessage) -> anyhow::Result<()> {
 pub fn send_query(message: KSocketMessage) -> anyhow::Result<String> {
     let socket = komorebi_data_dir()?.join(KOMOREBI_SOCK);
 
-    let mut stream = UnixStream::connect(socket)?;
-    stream.set_read_timeout(Some(Duration::from_secs(1)))?;
-    stream.set_write_timeout(Some(Duration::from_secs(1)))?;
+    let mut stream = connect(socket)?;
+    stream.set_read_timeout(Some(SOCKET_TIMEOUT))?;
+    stream.set_write_timeout(Some(SOCKET_TIMEOUT))?;
     stream.write_all(serde_json::to_string(&message)?.as_bytes())?;
     stream.shutdown(std::net::Shutdown::Write)?;
 

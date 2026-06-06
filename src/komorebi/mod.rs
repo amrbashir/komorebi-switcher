@@ -1,4 +1,5 @@
 use std::io::{BufReader, Read};
+use std::sync::mpsc;
 use std::time::Duration;
 
 use client::*;
@@ -7,7 +8,7 @@ pub use crate::komorebi::client::KCycleDirection as CycleDirection;
 
 mod client;
 
-#[derive(Debug, Clone, Default, Copy)]
+#[derive(Debug, Clone, Default, Copy, PartialEq, Eq)]
 #[allow(unused)]
 pub struct Rect {
     pub left: i32,
@@ -40,7 +41,7 @@ impl Rect {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Workspace {
     pub name: String,
     pub index: usize,
@@ -49,7 +50,7 @@ pub struct Workspace {
     pub layout: String,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[allow(unused)]
 pub struct Monitor {
     pub name: String,
@@ -106,9 +107,32 @@ impl Monitor {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct State {
     pub monitors: Vec<Monitor>,
+}
+
+impl State {
+    fn focused_workspaces_summary(&self) -> String {
+        self.monitors
+            .iter()
+            .map(|monitor| {
+                let monitor_name = if monitor.name.is_empty() {
+                    monitor.id.as_str()
+                } else {
+                    monitor.name.as_str()
+                };
+
+                let workspace = monitor
+                    .focused_workspace()
+                    .map(|workspace| workspace.name.as_str())
+                    .unwrap_or("<none>");
+
+                format!("{monitor_name}:{workspace}")
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
 }
 
 impl From<KState> for State {
@@ -137,18 +161,22 @@ pub fn change_workspace(monitor_idx: usize, workspace_idx: usize) {
     tracing::info!("Changing komorebi workspace to {workspace_idx} on monitor {monitor_idx}");
 
     let change_msg = KSocketMessage::FocusMonitorWorkspaceNumber(monitor_idx, workspace_idx);
-    if let Err(e) = client::send_message(&change_msg) {
-        tracing::error!("Failed to change workspace: {e}")
-    }
+    send_message_async(change_msg, "change workspace");
 }
 
 pub fn cycle_layout(direction: CycleDirection) {
     tracing::info!("Changing to {direction} komorebi layout");
 
     let change_msg = KSocketMessage::CycleLayout(direction);
-    if let Err(e) = client::send_message(&change_msg) {
-        tracing::error!("Failed to change layout: {e}")
-    }
+    send_message_async(change_msg, "cycle layout");
+}
+
+fn send_message_async(message: KSocketMessage, action: &'static str) {
+    std::thread::spawn(move || {
+        if let Err(e) = client::send_message(&message) {
+            tracing::error!("Failed to {action}: {e}");
+        }
+    });
 }
 
 #[cfg(debug_assertions)]
@@ -157,6 +185,47 @@ const SOCK_NAME: &str = "komorebi-switcher-debug.sock";
 const SOCK_NAME: &str = "komorebi-switcher.sock";
 
 pub fn listen_for_state(on_new_state: impl Fn(State) + Send + 'static) {
+    let (state_tx, state_rx) = mpsc::channel::<(String, State)>();
+    std::thread::spawn(move || {
+        let mut last_state = None;
+
+        while let Ok((mut event, mut state)) = state_rx.recv() {
+            let mut event_count = 1;
+
+            while let Ok((next_event, next_state)) =
+                state_rx.recv_timeout(Duration::from_millis(50))
+            {
+                event = next_event;
+                state = next_state;
+                event_count += 1;
+            }
+
+            if event == "AddSubscriberSocket" && last_state.is_none() {
+                tracing::debug!(
+                    "Initialized komorebi subscription state, focused: {}",
+                    state.focused_workspaces_summary()
+                );
+                last_state = Some(state);
+                continue;
+            }
+
+            if last_state.as_ref() == Some(&state) {
+                tracing::debug!(
+                    "Ignoring unchanged komorebi state after {event_count} event(s), last event: {event}"
+                );
+                continue;
+            }
+
+            tracing::debug!(
+                "Applying komorebi state update after {event_count} event(s), last event: {event}, focused: {}",
+                state.focused_workspaces_summary()
+            );
+
+            last_state = Some(state.clone());
+            on_new_state(state);
+        }
+    });
+
     let socket = loop {
         match client::subscribe(SOCK_NAME) {
             Ok(socket) => break socket,
@@ -209,15 +278,15 @@ pub fn listen_for_state(on_new_state: impl Fn(State) + Send + 'static) {
 
         tracing::trace!("Received komorebi message: {value}");
 
-        tracing::debug!(
-            "Received an event from komorebi: {}",
-            value
-                .get("event")
-                .and_then(|o| o.as_object())
-                .and_then(|o| o.get("type"))
-                .map(|v| v.to_string())
-                .unwrap_or_default()
-        );
+        let event = value
+            .get("event")
+            .and_then(|o| o.as_object())
+            .and_then(|o| o.get("type"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("<unknown>")
+            .to_string();
+
+        tracing::trace!("Received an event from komorebi: {event}");
 
         let notification = match serde_json::from_value::<KNotification>(value) {
             Ok(notification) => notification,
@@ -227,6 +296,8 @@ pub fn listen_for_state(on_new_state: impl Fn(State) + Send + 'static) {
             }
         };
 
-        on_new_state(notification.state.into());
+        if let Err(e) = state_tx.send((event, State::from(notification.state))) {
+            tracing::error!("Failed to queue komorebi state update: {e}");
+        }
     }
 }
