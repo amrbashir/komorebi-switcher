@@ -4,6 +4,23 @@ use std::path::PathBuf;
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResolvedMonitorConfig {
+    pub show_layout_button: bool,
+    pub hide_empty_workspaces: bool,
+    pub highlight_focused_workspace: bool,
+    pub font_family: Option<String>,
+    pub font_weight: u16,
+    pub active_indicator: Option<String>,
+    pub busy_indicator: Option<String>,
+    pub auto_width: bool,
+    pub auto_height: bool,
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
 fn default_width() -> i32 {
     200
 }
@@ -34,6 +51,9 @@ pub struct MonitorConfig {
     pub hide_empty_workspaces: Option<bool>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub highlight_focused_workspace: Option<bool>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_family: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_weight: Option<u16>,
@@ -62,6 +82,7 @@ impl Default for MonitorConfig {
         Self {
             show_layout_button: None,
             hide_empty_workspaces: None,
+            highlight_focused_workspace: None,
             font_family: None,
             font_weight: None,
             colors: ColorsConfig::default(),
@@ -81,6 +102,9 @@ pub struct Config {
     pub show_layout_button: bool,
     #[serde(default)]
     pub hide_empty_workspaces: bool,
+
+    #[serde(default = "default_true")]
+    pub highlight_focused_workspace: bool,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_family: Option<String>,
@@ -156,7 +180,6 @@ impl Config {
         self.monitors.get(monitor_id).cloned().unwrap_or_default()
     }
 
-    #[allow(dead_code)]
     pub fn get_monitor_mut(&mut self, monitor_id: &str) -> &mut MonitorConfig {
         self.monitors.entry(monitor_id.to_string()).or_default()
     }
@@ -164,6 +187,47 @@ impl Config {
     #[allow(dead_code)]
     pub fn set_monitor(&mut self, monitor_id: &str, config: MonitorConfig) {
         self.monitors.insert(monitor_id.to_string(), config);
+    }
+
+    pub fn resolved_monitor_config(&self, monitor_id: &str) -> ResolvedMonitorConfig {
+        let mc = self.get_monitor(monitor_id);
+
+        let show_layout_button = mc.show_layout_button.unwrap_or(self.show_layout_button);
+        let hide_empty_workspaces = mc
+            .hide_empty_workspaces
+            .unwrap_or(self.hide_empty_workspaces);
+
+        let highlight_focused_workspace = mc
+            .highlight_focused_workspace
+            .unwrap_or(self.highlight_focused_workspace);
+
+        let font_family = mc.font_family.or(self.font_family.clone());
+        let font_weight = mc.font_weight.or(self.font_weight).unwrap_or(400);
+
+        let active_indicator = mc
+            .colors
+            .active_indicator
+            .or(self.colors.active_indicator.clone());
+        let busy_indicator = mc
+            .colors
+            .busy_indicator
+            .or(self.colors.busy_indicator.clone());
+
+        ResolvedMonitorConfig {
+            show_layout_button,
+            hide_empty_workspaces,
+            highlight_focused_workspace,
+            font_family,
+            font_weight,
+            active_indicator,
+            busy_indicator,
+            auto_width: mc.auto_width,
+            auto_height: mc.auto_height,
+            x: mc.x,
+            y: mc.y,
+            width: mc.width,
+            height: mc.height,
+        }
     }
 }
 

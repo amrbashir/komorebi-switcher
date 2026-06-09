@@ -92,6 +92,13 @@ impl SettingsWindowView {
         ));
     }
 
+    fn global_highlight_focused_workspace_ui(&mut self, ui: &mut egui::Ui) {
+        ui.add(egui::Checkbox::new(
+            &mut self.config.highlight_focused_workspace,
+            "Highlight focused workspace",
+        ));
+    }
+
     fn global_font_family_ui(&mut self, ui: &mut egui::Ui) {
         ui.label("Font Family");
 
@@ -153,6 +160,9 @@ impl SettingsWindowView {
                 ui.end_row();
 
                 self.global_hide_empty_workspaces_ui(ui);
+                ui.end_row();
+
+                self.global_highlight_focused_workspace_ui(ui);
                 ui.end_row();
 
                 self.global_font_family_ui(ui);
@@ -252,6 +262,31 @@ impl SettingsWindowView {
 
         if before != selected {
             monitor_config.hide_empty_workspaces = selected.into();
+        }
+    }
+
+    fn highlight_focused_workspace_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
+        let monitor_config = self.config.get_monitor_mut(monitor_id);
+
+        ui.label("Highlight focused workspace");
+
+        let mut selected: ActivationOption = monitor_config.highlight_focused_workspace.into();
+        let before = selected;
+
+        egui::ComboBox::new("highlight_focused_workspace", "")
+            .selected_text(format!("{}", selected))
+            .show_ui(ui, |ui| {
+                for option in [
+                    ActivationOption::Inherit,
+                    ActivationOption::Enable,
+                    ActivationOption::Disable,
+                ] {
+                    ui.selectable_value(&mut selected, option, format!("{}", option));
+                }
+            });
+
+        if before != selected {
+            monitor_config.highlight_focused_workspace = selected.into();
         }
     }
 
@@ -356,6 +391,9 @@ impl SettingsWindowView {
         ui.end_row();
 
         self.hide_empty_workspaces_ui(ui, monitor_id);
+        ui.end_row();
+
+        self.highlight_focused_workspace_ui(ui, monitor_id);
         ui.end_row();
 
         self.font_family_ui(ui, monitor_id);

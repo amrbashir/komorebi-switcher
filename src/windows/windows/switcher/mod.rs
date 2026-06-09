@@ -12,7 +12,7 @@ use winit::event_loop::ActiveEventLoop;
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::WindowAttributes;
 
-use crate::config::Config;
+use crate::config::{Config, ResolvedMonitorConfig};
 use crate::komorebi::CycleDirection;
 use crate::windows::app::{App, AppMessage};
 use crate::windows::context_menu::AppContextMenu;
@@ -51,7 +51,10 @@ impl App {
             monitor_config.height,
         ));
 
-        let parent = unsafe { NonZero::new_unchecked(host.0 as _) };
+        let parent = {
+            debug_assert!(!host.is_invalid(), "host window must not be null");
+            unsafe { NonZero::new_unchecked(host.0 as _) }
+        };
         let parent = Win32WindowHandle::new(parent);
         let parent = RawWindowHandle::Win32(parent);
         attrs = unsafe { attrs.with_parent_window(Some(parent)) };
@@ -95,6 +98,7 @@ pub struct SwitcherWindowView {
     accent_light2_color: Option<egui::Color32>,
     accent_color: Option<egui::Color32>,
     forgreound_color: Option<egui::Color32>,
+    dark_mode: Option<bool>,
     prev_bounds: Option<egui::Rect>,
     applied_font: Option<(String, u16)>,
 }
@@ -115,6 +119,7 @@ impl SwitcherWindowView {
             accent_color: None,
             accent_light2_color: None,
             forgreound_color: None,
+            dark_mode: None,
             config,
             preview_config: None,
             prev_bounds: None,
@@ -132,13 +137,15 @@ impl SwitcherWindowView {
 
 /// Getters
 impl SwitcherWindowView {
-    /// Gets the effective config for the switcher, which is the preview config
-    /// if set, or the actual config otherwise.
-    fn effective_config(&self) -> Config {
-        self.preview_config.clone().unwrap_or_else(|| {
-            let config = self.config.read().unwrap();
-            config.clone()
-        })
+    fn resolved_config(&self) -> ResolvedMonitorConfig {
+        if let Some(preview) = &self.preview_config {
+            preview.resolved_monitor_config(&self.monitor_state.id)
+        } else {
+            self.config
+                .read()
+                .unwrap()
+                .resolved_monitor_config(&self.monitor_state.id)
+        }
     }
 
     /// Gets the height of the taskbar.
@@ -150,11 +157,8 @@ impl SwitcherWindowView {
     }
 
     /// Determines if the system is in dark mode.
-    // FIXME: use egui internal dark mode detection
     fn is_system_dark_mode(&self) -> bool {
-        self.forgreound_color
-            .map(|c| c == egui::Color32::WHITE)
-            .unwrap_or(false)
+        self.dark_mode.unwrap_or(false)
     }
 
     /// Gets the accent color to use for the switcher, based on the system
@@ -196,6 +200,14 @@ impl SwitcherWindowView {
         let color = egui::Color32::from_rgb(color.R, color.G, color.B);
         self.forgreound_color.replace(color);
 
+        let dark_mode = windows_registry::CURRENT_USER
+            .open("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize")
+            .ok()
+            .and_then(|key| key.get_u32("AppsUseLightTheme").ok())
+            .map(|v| v == 0)
+            .unwrap_or(false);
+        self.dark_mode.replace(dark_mode);
+
         Ok(())
     }
 
@@ -205,24 +217,24 @@ impl SwitcherWindowView {
         &mut self,
         rect: egui::Rect,
         ppp: f32,
-        monitor_config: &crate::config::MonitorConfig,
+        resolved: &ResolvedMonitorConfig,
     ) -> anyhow::Result<()> {
         // Scale by pixels per point
         let rect = rect * ppp;
 
-        let x = monitor_config.x;
-        let y = monitor_config.y;
+        let x = resolved.x;
+        let y = resolved.y;
 
-        let height = if monitor_config.auto_height {
+        let height = if resolved.auto_height {
             self.taskbar_height()?
         } else {
-            monitor_config.height
+            resolved.height
         };
 
-        let width = if monitor_config.auto_width {
+        let width = if resolved.auto_width {
             rect.width() as i32
         } else {
-            monitor_config.width
+            resolved.width
         };
 
         let current_bounds = egui::Rect::from_min_size(
@@ -247,7 +259,7 @@ impl SwitcherWindowView {
             }?;
 
             // Store auto size if needed
-            if monitor_config.auto_width || monitor_config.auto_height {
+            if resolved.auto_width || resolved.auto_height {
                 let _ = registry::store_auto_size(&self.monitor_state.id, width, height);
             }
 
@@ -260,20 +272,9 @@ impl SwitcherWindowView {
 
     /// Applies the desired font to the egui context if it's not already
     /// applied.
-    fn maybe_apply_font(
-        &mut self,
-        ctx: &egui::Context,
-        config: &Config,
-        monitor_config: &crate::config::MonitorConfig,
-    ) {
-        let font_family = monitor_config
-            .font_family
-            .as_deref()
-            .or(config.font_family.as_deref());
-        let font_weight = monitor_config
-            .font_weight
-            .or(config.font_weight)
-            .unwrap_or(400);
+    fn maybe_apply_font(&mut self, ctx: &egui::Context, resolved: &ResolvedMonitorConfig) {
+        let font_family = resolved.font_family.as_deref();
+        let font_weight = resolved.font_weight;
 
         // Skip if the desired font is already applied
         let desired = font_family.map(|family| (family.to_string(), font_weight));
@@ -333,37 +334,26 @@ impl SwitcherWindowView {
         &self,
         ui: &mut egui::Ui,
         workspace: &crate::komorebi::Workspace,
-        monitor_config: &crate::config::MonitorConfig,
-        config: &Config,
+        resolved: &ResolvedMonitorConfig,
+        uniform_width: Option<f32>,
     ) {
-        // Determine active indicator colors,
-        // with monitor config taking precedence over global config,
-        // and falling back to accent color if not specified.
-        let active_indicator_color = match monitor_config.colors.active_indicator {
-            Some(ref c) => egui_color_from_color(c),
-            None => config
-                .colors
-                .active_indicator
-                .as_ref()
-                .and_then(|c| egui_color_from_color(c)),
-        };
-        let active_indicator_color = active_indicator_color.or_else(|| self.accent_color());
+        let active_indicator_color = resolved
+            .active_indicator
+            .as_ref()
+            .and_then(|c| egui_color_from_color(c))
+            .or_else(|| self.accent_color());
 
-        // Determine busy indicator color,
-        // with monitor config taking precedence over global config.
-        let busy_indicator_color = match monitor_config.colors.busy_indicator {
-            Some(ref c) => egui_color_from_color(c),
-            None => config
-                .colors
-                .busy_indicator
-                .as_ref()
-                .and_then(|c| egui_color_from_color(c)),
-        };
+        let busy_indicator_color = resolved
+            .busy_indicator
+            .as_ref()
+            .and_then(|c| egui_color_from_color(c));
 
         let btn = WorkspaceButton::new(workspace)
             .dark_mode(Some(self.is_system_dark_mode()))
             .line_active_color_opt(active_indicator_color)
             .line_busy_color_opt(busy_indicator_color)
+            .width_opt(uniform_width)
+            .highlight_focused_opt(Some(resolved.highlight_focused_workspace))
             .text_color_opt(self.forgreound_color);
 
         if ui.add(btn).clicked() {
@@ -372,36 +362,45 @@ impl SwitcherWindowView {
     }
 
     /// Main UI elements, workspaces buttons, layout button ...etc
-    fn switcher_ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        config: &Config,
-        monitor_config: &crate::config::MonitorConfig,
-    ) {
-        // Set spacing between buttons
+    fn switcher_ui(&mut self, ui: &mut egui::Ui, resolved: &ResolvedMonitorConfig) {
         ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
 
-        // Determine whether to show or hide empty workspaces
-        let hide_empty_workspaces = match monitor_config.hide_empty_workspaces {
-            Some(hide) => hide,
-            None => config.hide_empty_workspaces,
+        let hide_empty_workspaces = resolved.hide_empty_workspaces;
+
+        let visible_workspaces = self
+            .monitor_state
+            .workspaces
+            .iter()
+            .filter(|workspace| !(hide_empty_workspaces && workspace.is_empty && !workspace.focused))
+            .collect::<Vec<_>>();
+
+        let uniform_width = {
+            const MIN_WIDTH: f32 = 28.0;
+            const HORIZONTAL_TEXT_PADDING: f32 = 16.0;
+
+            let max_text_width = visible_workspaces
+                .iter()
+                .map(|workspace| {
+                    ui.painter()
+                        .layout_no_wrap(
+                            workspace.name.clone(),
+                            egui::FontId::default(),
+                            egui::Color32::TRANSPARENT,
+                        )
+                        .rect
+                        .width()
+                })
+                .fold(0.0, f32::max);
+
+            Some((max_text_width + HORIZONTAL_TEXT_PADDING).max(MIN_WIDTH))
         };
 
         // Draw a button for each workspace
-        for workspace in self.monitor_state.workspaces.iter() {
-            //Skip empty and unfocused workspaces if the setting is enabled
-            if hide_empty_workspaces && workspace.is_empty && !workspace.focused {
-                continue;
-            }
-
-            self.workspace_button(ui, workspace, monitor_config, config);
+        for workspace in visible_workspaces {
+            self.workspace_button(ui, workspace, resolved, uniform_width);
         }
 
-        // Show layout button for focused workspace if the setting is enabled
-        let show_layout_button = match monitor_config.show_layout_button {
-            Some(show) => show,
-            None => config.show_layout_button,
-        };
+        let show_layout_button = resolved.show_layout_button;
         if show_layout_button {
             if let Some(focused_ws) = self.monitor_state.focused_workspace() {
                 ui.add(egui::Label::new("|"));
@@ -416,8 +415,7 @@ impl SwitcherWindowView {
     fn switcher_panel(
         &mut self,
         ctx: &egui::Context,
-        config: &Config,
-        monitor_config: &crate::config::MonitorConfig,
+        resolved: &ResolvedMonitorConfig,
     ) -> egui::InnerResponse<egui::Rect> {
         // Set transparent panel visual for the switcher.
         let visuals = egui::Visuals {
@@ -433,7 +431,7 @@ impl SwitcherWindowView {
         let total_margin = frame.total_margin();
         egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
             let response = ui.horizontal_centered(|ui| {
-                self.switcher_ui(ui, config, monitor_config);
+                self.switcher_ui(ui, resolved);
                 ui.min_rect()
             });
 
@@ -480,24 +478,18 @@ impl EguiView for SwitcherWindowView {
 
     // Main render loop
     fn update(&mut self, ctx: &egui::Context) {
-        // Show context menu on right click
         if ctx.input(|i| i.pointer.button_pressed(egui::PointerButton::Secondary)) {
             self.show_context_menu();
         }
 
-        // Load effective config.
-        let config = self.effective_config();
-        let monitor_config = config.get_monitor(&self.monitor_state.id);
+        let resolved = self.resolved_config();
 
-        // Apply font
-        self.maybe_apply_font(ctx, &config, &monitor_config);
+        self.maybe_apply_font(ctx, &resolved);
 
-        // Draw ui
-        let response = self.switcher_panel(ctx, &config, &monitor_config);
+        let response = self.switcher_panel(ctx, &resolved);
 
-        // Resize host to match the content rect.
         let ppp = ctx.pixels_per_point();
-        if let Err(e) = self.resize_host_to_rect(response.inner, ppp, &monitor_config) {
+        if let Err(e) = self.resize_host_to_rect(response.inner, ppp, &resolved) {
             tracing::error!("Failed to resize host to rect: {e}");
         }
     }

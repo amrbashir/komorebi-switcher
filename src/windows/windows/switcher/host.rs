@@ -20,6 +20,7 @@ pub unsafe fn create_host(
 ) -> anyhow::Result<HWND> {
     let hinstance = unsafe { GetModuleHandleW(None) }?;
 
+
     let mut rect = RECT::default();
     GetClientRect(taskbar_hwnd, &mut rect)?;
 
