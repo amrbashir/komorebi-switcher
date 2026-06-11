@@ -5,282 +5,282 @@ use objc2::rc::Retained;
 use objc2::runtime::Sel;
 use objc2::{define_class, msg_send, sel, DefinedClass, MainThreadOnly};
 use objc2_app_kit::{
-    NSBox, NSBoxType, NSButton, NSButtonType, NSControlStateValueOff, NSControlStateValueOn,
-    NSFont, NSLayoutAttribute, NSStackView, NSTextField, NSUserInterfaceLayoutOrientation, NSView,
-    NSViewController, NSWindow,
+	NSBox, NSBoxType, NSButton, NSButtonType, NSControlStateValueOff, NSControlStateValueOn,
+	NSFont, NSLayoutAttribute, NSStackView, NSTextField, NSUserInterfaceLayoutOrientation, NSView,
+	NSViewController, NSWindow,
 };
 use objc2_foundation::{MainThreadMarker, NSEdgeInsets, NSObjectProtocol, NSString};
 
 define_class!(
-    #[unsafe(super = NSViewController)]
-    #[thread_kind = MainThreadOnly]
-    #[ivars = SettingsViewControllerIvars]
-    #[derive(Debug)]
-    pub struct SettingsViewController;
+	#[unsafe(super = NSViewController)]
+	#[thread_kind = MainThreadOnly]
+	#[ivars = SettingsViewControllerIvars]
+	#[derive(Debug)]
+	pub struct SettingsViewController;
 
-    unsafe impl NSObjectProtocol for SettingsViewController {}
+	unsafe impl NSObjectProtocol for SettingsViewController {}
 
-    impl SettingsViewController {
-        #[unsafe(method(saveClicked:))]
-        fn save_clicked(&self, _sender: &NSButton) {
-            if let Err(e) = self.save_config() {
-                tracing::error!("Failed to save config: {e}");
-            }
-            self.close_window();
-        }
+	impl SettingsViewController {
+		#[unsafe(method(saveClicked:))]
+		fn save_clicked(&self, _sender: &NSButton) {
+			if let Err(e) = self.save_config() {
+				tracing::error!("Failed to save config: {e}");
+			}
+			self.close_window();
+		}
 
-        #[unsafe(method(cancelClicked:))]
-        fn cancel_clicked(&self, _sender: &NSButton) {
-            self.close_window();
-        }
-    }
+		#[unsafe(method(cancelClicked:))]
+		fn cancel_clicked(&self, _sender: &NSButton) {
+			self.close_window();
+		}
+	}
 );
 
 #[derive(Debug)]
 pub struct SettingsViewControllerIvars {
-    config: RefCell<crate::config::Config>,
-    show_layout_button_checkbox: RefCell<Option<Retained<NSButton>>>,
-    hide_empty_workspaces_checkbox: RefCell<Option<Retained<NSButton>>>,
-    font_family_field: RefCell<Option<Retained<NSTextField>>>,
-    font_weight_field: RefCell<Option<Retained<NSTextField>>>,
-    active_indicator_color_field: RefCell<Option<Retained<NSTextField>>>,
-    busy_indicator_color_field: RefCell<Option<Retained<NSTextField>>>,
+	config: RefCell<crate::config::Config>,
+	show_layout_button_checkbox: RefCell<Option<Retained<NSButton>>>,
+	hide_empty_workspaces_checkbox: RefCell<Option<Retained<NSButton>>>,
+	font_family_field: RefCell<Option<Retained<NSTextField>>>,
+	font_weight_field: RefCell<Option<Retained<NSTextField>>>,
+	active_indicator_color_field: RefCell<Option<Retained<NSTextField>>>,
+	busy_indicator_color_field: RefCell<Option<Retained<NSTextField>>>,
 }
 
 impl SettingsViewControllerIvars {
-    fn new(config: crate::config::Config) -> Self {
-        Self {
-            config: RefCell::new(config),
-            show_layout_button_checkbox: RefCell::new(None),
-            hide_empty_workspaces_checkbox: RefCell::new(None),
-            font_family_field: RefCell::new(None),
-            font_weight_field: RefCell::new(None),
-            active_indicator_color_field: RefCell::new(None),
-            busy_indicator_color_field: RefCell::new(None),
-        }
-    }
+	fn new(config: crate::config::Config) -> Self {
+		Self {
+			config: RefCell::new(config),
+			show_layout_button_checkbox: RefCell::new(None),
+			hide_empty_workspaces_checkbox: RefCell::new(None),
+			font_family_field: RefCell::new(None),
+			font_weight_field: RefCell::new(None),
+			active_indicator_color_field: RefCell::new(None),
+			busy_indicator_color_field: RefCell::new(None),
+		}
+	}
 }
 
 impl SettingsViewController {
-    pub fn new(mtm: MainThreadMarker, config: crate::config::Config) -> Retained<Self> {
-        let this = Self::alloc(mtm).set_ivars(SettingsViewControllerIvars::new(config));
-        let this: Retained<Self> = unsafe { msg_send![super(this), init] };
+	pub fn new(mtm: MainThreadMarker, config: crate::config::Config) -> Retained<Self> {
+		let this = Self::alloc(mtm).set_ivars(SettingsViewControllerIvars::new(config));
+		let this: Retained<Self> = unsafe { msg_send![super(this), init] };
 
-        this.setup_ui();
+		this.setup_ui();
 
-        this
-    }
+		this
+	}
 
-    fn setup_ui(&self) {
-        let main_stack = self.create_vstack();
-        main_stack.setEdgeInsets(NSEdgeInsets {
-            top: 16.0,
-            left: 16.0,
-            bottom: 16.0,
-            right: 16.0,
-        });
+	fn setup_ui(&self) {
+		let main_stack = self.create_vstack();
+		main_stack.setEdgeInsets(NSEdgeInsets {
+			top: 16.0,
+			left: 16.0,
+			bottom: 16.0,
+			right: 16.0,
+		});
 
-        main_stack.addArrangedSubview(&self.create_header("Global Settings"));
-        main_stack.addArrangedSubview(&self.create_global_settings_ui());
-        main_stack.addArrangedSubview(&self.create_separator());
-        main_stack.addArrangedSubview(&self.create_action_buttons_ui());
+		main_stack.addArrangedSubview(&self.create_header("Global Settings"));
+		main_stack.addArrangedSubview(&self.create_global_settings_ui());
+		main_stack.addArrangedSubview(&self.create_separator());
+		main_stack.addArrangedSubview(&self.create_action_buttons_ui());
 
-        self.setView(&main_stack);
-    }
+		self.setView(&main_stack);
+	}
 
-    fn create_vstack(&self) -> Retained<NSStackView> {
-        let mtm = self.mtm();
+	fn create_vstack(&self) -> Retained<NSStackView> {
+		let mtm = self.mtm();
 
-        let main_stack = NSStackView::new(mtm);
-        main_stack.setOrientation(NSUserInterfaceLayoutOrientation::Vertical);
-        main_stack.setAlignment(NSLayoutAttribute::Leading);
-        main_stack.setSpacing(12.0);
+		let main_stack = NSStackView::new(mtm);
+		main_stack.setOrientation(NSUserInterfaceLayoutOrientation::Vertical);
+		main_stack.setAlignment(NSLayoutAttribute::Leading);
+		main_stack.setSpacing(12.0);
 
-        main_stack
-    }
+		main_stack
+	}
 
-    fn create_hstack(&self) -> Retained<NSStackView> {
-        let mtm = self.mtm();
+	fn create_hstack(&self) -> Retained<NSStackView> {
+		let mtm = self.mtm();
 
-        let main_stack = NSStackView::new(mtm);
-        main_stack.setOrientation(NSUserInterfaceLayoutOrientation::Horizontal);
-        main_stack.setSpacing(8.0);
+		let main_stack = NSStackView::new(mtm);
+		main_stack.setOrientation(NSUserInterfaceLayoutOrientation::Horizontal);
+		main_stack.setSpacing(8.0);
 
-        main_stack
-    }
+		main_stack
+	}
 
-    fn create_separator(&self) -> Retained<NSBox> {
-        let mtm = self.mtm();
-        let separator = NSBox::new(mtm);
-        separator.setBoxType(NSBoxType::Separator);
-        separator
-    }
+	fn create_separator(&self) -> Retained<NSBox> {
+		let mtm = self.mtm();
+		let separator = NSBox::new(mtm);
+		separator.setBoxType(NSBoxType::Separator);
+		separator
+	}
 
-    fn create_header(&self, title: &str) -> Retained<NSTextField> {
-        let mtm = self.mtm();
-        let header = NSTextField::labelWithString(&NSString::from_str(title), mtm);
-        header.setFont(Some(&*NSFont::boldSystemFontOfSize(16.0)));
-        header
-    }
+	fn create_header(&self, title: &str) -> Retained<NSTextField> {
+		let mtm = self.mtm();
+		let header = NSTextField::labelWithString(&NSString::from_str(title), mtm);
+		header.setFont(Some(&*NSFont::boldSystemFontOfSize(16.0)));
+		header
+	}
 
-    fn create_checkbox(&self, title: &str, initial_state: bool) -> Retained<NSButton> {
-        let mtm = self.mtm();
+	fn create_checkbox(&self, title: &str, initial_state: bool) -> Retained<NSButton> {
+		let mtm = self.mtm();
 
-        let checkbox = NSButton::new(mtm);
-        checkbox.setButtonType(NSButtonType::Switch);
-        checkbox.setTitle(&NSString::from_str(title));
-        checkbox.setState(if initial_state {
-            NSControlStateValueOn
-        } else {
-            NSControlStateValueOff
-        });
+		let checkbox = NSButton::new(mtm);
+		checkbox.setButtonType(NSButtonType::Switch);
+		checkbox.setTitle(&NSString::from_str(title));
+		checkbox.setState(if initial_state {
+			NSControlStateValueOn
+		} else {
+			NSControlStateValueOff
+		});
 
-        checkbox
-    }
+		checkbox
+	}
 
-    fn create_text_field(&self, placeholder: &str, initial_value: &str) -> Retained<NSTextField> {
-        let mtm = self.mtm();
-        let field = NSTextField::initWithFrame(NSTextField::alloc(mtm), Default::default());
-        field.setPlaceholderString(Some(&NSString::from_str(placeholder)));
-        field.setStringValue(&NSString::from_str(initial_value));
-        field
-    }
+	fn create_text_field(&self, placeholder: &str, initial_value: &str) -> Retained<NSTextField> {
+		let mtm = self.mtm();
+		let field = NSTextField::initWithFrame(NSTextField::alloc(mtm), Default::default());
+		field.setPlaceholderString(Some(&NSString::from_str(placeholder)));
+		field.setStringValue(&NSString::from_str(initial_value));
+		field
+	}
 
-    fn create_action_button(&self, title: &str, action: Sel) -> Retained<NSButton> {
-        let mtm = self.mtm();
-        let button = NSButton::new(mtm);
-        button.setTitle(&NSString::from_str(title));
-        unsafe { button.setTarget(Some(self)) };
-        unsafe { button.setAction(Some(action)) };
-        button
-    }
+	fn create_action_button(&self, title: &str, action: Sel) -> Retained<NSButton> {
+		let mtm = self.mtm();
+		let button = NSButton::new(mtm);
+		button.setTitle(&NSString::from_str(title));
+		unsafe { button.setTarget(Some(self)) };
+		unsafe { button.setAction(Some(action)) };
+		button
+	}
 
-    fn create_global_settings_ui(&self) -> Retained<NSStackView> {
-        let config = self.ivars().config.borrow();
+	fn create_global_settings_ui(&self) -> Retained<NSStackView> {
+		let config = self.ivars().config.borrow();
 
-        let vstack = self.create_vstack();
+		let vstack = self.create_vstack();
 
-        // Show layout button checkbox
-        let layout = self.create_checkbox("Show layout button", config.show_layout_button);
-        vstack.addArrangedSubview(&layout);
-        *self.ivars().show_layout_button_checkbox.borrow_mut() = Some(layout);
+		// Show layout button checkbox
+		let layout = self.create_checkbox("Show layout button", config.show_layout_button);
+		vstack.addArrangedSubview(&layout);
+		*self.ivars().show_layout_button_checkbox.borrow_mut() = Some(layout);
 
-        // Hide empty workspaces checkbox
-        let label = "Hide empty workspaces";
-        let empty_workspace = self.create_checkbox(label, config.hide_empty_workspaces);
-        vstack.addArrangedSubview(&empty_workspace);
-        *self.ivars().hide_empty_workspaces_checkbox.borrow_mut() = Some(empty_workspace);
+		// Hide empty workspaces checkbox
+		let label = "Hide empty workspaces";
+		let empty_workspace = self.create_checkbox(label, config.hide_empty_workspaces);
+		vstack.addArrangedSubview(&empty_workspace);
+		*self.ivars().hide_empty_workspaces_checkbox.borrow_mut() = Some(empty_workspace);
 
-        // Font family input
-        let family_row = self.create_hstack();
-        let family_label = NSString::from_str("Font Family");
-        let family_label = NSTextField::labelWithString(&family_label, self.mtm());
-        let family_value = config.font_family.as_deref().unwrap_or("");
-        let family_field = self.create_text_field("e.g. Roboto", family_value);
-        family_row.addArrangedSubview(&family_label);
-        family_row.addArrangedSubview(&family_field);
-        vstack.addArrangedSubview(&family_row);
-        *self.ivars().font_family_field.borrow_mut() = Some(family_field);
+		// Font family input
+		let family_row = self.create_hstack();
+		let family_label = NSString::from_str("Font Family");
+		let family_label = NSTextField::labelWithString(&family_label, self.mtm());
+		let family_value = config.font_family.as_deref().unwrap_or("");
+		let family_field = self.create_text_field("e.g. Roboto", family_value);
+		family_row.addArrangedSubview(&family_label);
+		family_row.addArrangedSubview(&family_field);
+		vstack.addArrangedSubview(&family_row);
+		*self.ivars().font_family_field.borrow_mut() = Some(family_field);
 
-        // Font weight input
-        let weight_row = self.create_hstack();
-        let weight_label = NSString::from_str("Font Weight");
-        let weight_label = NSTextField::labelWithString(&weight_label, self.mtm());
-        let weight_value = config.font_weight.unwrap_or(400).to_string();
-        let weight_field = self.create_text_field("100-900", &weight_value);
-        weight_row.addArrangedSubview(&weight_label);
-        weight_row.addArrangedSubview(&weight_field);
-        vstack.addArrangedSubview(&weight_row);
-        *self.ivars().font_weight_field.borrow_mut() = Some(weight_field);
+		// Font weight input
+		let weight_row = self.create_hstack();
+		let weight_label = NSString::from_str("Font Weight");
+		let weight_label = NSTextField::labelWithString(&weight_label, self.mtm());
+		let weight_value = config.font_weight.unwrap_or(400).to_string();
+		let weight_field = self.create_text_field("100-900", &weight_value);
+		weight_row.addArrangedSubview(&weight_label);
+		weight_row.addArrangedSubview(&weight_field);
+		vstack.addArrangedSubview(&weight_row);
+		*self.ivars().font_weight_field.borrow_mut() = Some(weight_field);
 
-        let active_indicator_row = self.create_hstack();
-        let active_indicator_label = NSString::from_str("Active Indicator");
-        let active_indicator_label =
-            NSTextField::labelWithString(&active_indicator_label, self.mtm());
-        let active_indicator_value = config.colors.active_indicator.clone().unwrap_or_default();
-        let active_indicator_field =
-            self.create_text_field("#RRGGBBAA or rgba(...)", &active_indicator_value);
-        active_indicator_row.addArrangedSubview(&active_indicator_label);
-        active_indicator_row.addArrangedSubview(&active_indicator_field);
-        vstack.addArrangedSubview(&active_indicator_row);
-        *self.ivars().active_indicator_color_field.borrow_mut() = Some(active_indicator_field);
+		let active_indicator_row = self.create_hstack();
+		let active_indicator_label = NSString::from_str("Active Indicator");
+		let active_indicator_label =
+			NSTextField::labelWithString(&active_indicator_label, self.mtm());
+		let active_indicator_value = config.colors.active_indicator.clone().unwrap_or_default();
+		let active_indicator_field =
+			self.create_text_field("#RRGGBBAA or rgba(...)", &active_indicator_value);
+		active_indicator_row.addArrangedSubview(&active_indicator_label);
+		active_indicator_row.addArrangedSubview(&active_indicator_field);
+		vstack.addArrangedSubview(&active_indicator_row);
+		*self.ivars().active_indicator_color_field.borrow_mut() = Some(active_indicator_field);
 
-        let busy_indicator_row = self.create_hstack();
-        let busy_indicator_label = NSString::from_str("Busy Indicator");
-        let busy_indicator_label = NSTextField::labelWithString(&busy_indicator_label, self.mtm());
-        let busy_indicator_value = config.colors.busy_indicator.clone().unwrap_or_default();
-        let busy_indicator_field =
-            self.create_text_field("#RRGGBBAA or rgba(...)", &busy_indicator_value);
-        busy_indicator_row.addArrangedSubview(&busy_indicator_label);
-        busy_indicator_row.addArrangedSubview(&busy_indicator_field);
-        vstack.addArrangedSubview(&busy_indicator_row);
-        *self.ivars().busy_indicator_color_field.borrow_mut() = Some(busy_indicator_field);
+		let busy_indicator_row = self.create_hstack();
+		let busy_indicator_label = NSString::from_str("Busy Indicator");
+		let busy_indicator_label = NSTextField::labelWithString(&busy_indicator_label, self.mtm());
+		let busy_indicator_value = config.colors.busy_indicator.clone().unwrap_or_default();
+		let busy_indicator_field =
+			self.create_text_field("#RRGGBBAA or rgba(...)", &busy_indicator_value);
+		busy_indicator_row.addArrangedSubview(&busy_indicator_label);
+		busy_indicator_row.addArrangedSubview(&busy_indicator_field);
+		vstack.addArrangedSubview(&busy_indicator_row);
+		*self.ivars().busy_indicator_color_field.borrow_mut() = Some(busy_indicator_field);
 
-        vstack
-    }
+		vstack
+	}
 
-    fn create_action_buttons_ui(&self) -> Retained<NSStackView> {
-        let hstack = self.create_hstack();
+	fn create_action_buttons_ui(&self) -> Retained<NSStackView> {
+		let hstack = self.create_hstack();
 
-        let save_button = self.create_action_button("Save", sel!(saveClicked:));
-        hstack.addArrangedSubview(&save_button);
+		let save_button = self.create_action_button("Save", sel!(saveClicked:));
+		hstack.addArrangedSubview(&save_button);
 
-        let cancel_button = self.create_action_button("Cancel", sel!(cancelClicked:));
-        hstack.addArrangedSubview(&cancel_button);
+		let cancel_button = self.create_action_button("Cancel", sel!(cancelClicked:));
+		hstack.addArrangedSubview(&cancel_button);
 
-        hstack
-    }
+		hstack
+	}
 
-    fn save_config(&self) -> anyhow::Result<()> {
-        let mut config = self.ivars().config.borrow_mut();
-        if let Some(checkbox) = self.ivars().show_layout_button_checkbox.borrow().as_ref() {
-            config.show_layout_button = checkbox.state() == NSControlStateValueOn;
-        }
-        if let Some(checkbox) = self
-            .ivars()
-            .hide_empty_workspaces_checkbox
-            .borrow()
-            .as_ref()
-        {
-            config.hide_empty_workspaces = checkbox.state() == NSControlStateValueOn;
-        }
-        if let Some(field) = self.ivars().font_family_field.borrow().as_ref() {
-            let value = field.stringValue().to_string();
-            config.font_family = if value.is_empty() { None } else { Some(value) };
-        }
-        if let Some(field) = self.ivars().font_weight_field.borrow().as_ref() {
-            let value = field.stringValue().to_string();
-            config.font_weight = value.parse::<u16>().ok();
-        }
-        if let Some(field) = self.ivars().active_indicator_color_field.borrow().as_ref() {
-            let value = field.stringValue().to_string();
-            let value = value.trim();
-            config.colors.active_indicator = if value.is_empty() {
-                None
-            } else {
-                color::parse_color(value).context("invalid active indicator color")?;
-                Some(value.to_string())
-            };
-        }
-        if let Some(field) = self.ivars().busy_indicator_color_field.borrow().as_ref() {
-            let value = field.stringValue().to_string();
-            let value = value.trim();
-            config.colors.busy_indicator = if value.is_empty() {
-                None
-            } else {
-                color::parse_color(value).context("invalid busy indicator color")?;
-                Some(value.to_string())
-            };
-        }
-        config.save()?;
-        Ok(())
-    }
+	fn save_config(&self) -> anyhow::Result<()> {
+		let mut config = self.ivars().config.borrow_mut();
+		if let Some(checkbox) = self.ivars().show_layout_button_checkbox.borrow().as_ref() {
+			config.show_layout_button = checkbox.state() == NSControlStateValueOn;
+		}
+		if let Some(checkbox) = self
+			.ivars()
+			.hide_empty_workspaces_checkbox
+			.borrow()
+			.as_ref()
+		{
+			config.hide_empty_workspaces = checkbox.state() == NSControlStateValueOn;
+		}
+		if let Some(field) = self.ivars().font_family_field.borrow().as_ref() {
+			let value = field.stringValue().to_string();
+			config.font_family = if value.is_empty() { None } else { Some(value) };
+		}
+		if let Some(field) = self.ivars().font_weight_field.borrow().as_ref() {
+			let value = field.stringValue().to_string();
+			config.font_weight = value.parse::<u16>().ok();
+		}
+		if let Some(field) = self.ivars().active_indicator_color_field.borrow().as_ref() {
+			let value = field.stringValue().to_string();
+			let value = value.trim();
+			config.colors.active_indicator = if value.is_empty() {
+				None
+			} else {
+				color::parse_color(value).context("invalid active indicator color")?;
+				Some(value.to_string())
+			};
+		}
+		if let Some(field) = self.ivars().busy_indicator_color_field.borrow().as_ref() {
+			let value = field.stringValue().to_string();
+			let value = value.trim();
+			config.colors.busy_indicator = if value.is_empty() {
+				None
+			} else {
+				color::parse_color(value).context("invalid busy indicator color")?;
+				Some(value.to_string())
+			};
+		}
+		config.save()?;
+		Ok(())
+	}
 
-    fn close_window(&self) {
-        let view: Retained<NSView> = self.view();
-        if let Some(window) = view.window() {
-            let window: &NSWindow = &window;
-            window.orderOut(None);
-        }
-    }
+	fn close_window(&self) {
+		let view: Retained<NSView> = self.view();
+		if let Some(window) = view.window() {
+			let window: &NSWindow = &window;
+			window.orderOut(None);
+		}
+	}
 }

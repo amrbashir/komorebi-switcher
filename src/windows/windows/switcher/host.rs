@@ -14,138 +14,138 @@ const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher-debug::host");
 const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher::host");
 
 pub unsafe fn create_host(
-    taskbar_hwnd: HWND,
-    proxy: EventLoopProxy<AppMessage>,
-    monitor_config: &MonitorConfig,
+	taskbar_hwnd: HWND,
+	proxy: EventLoopProxy<AppMessage>,
+	monitor_config: &MonitorConfig,
 ) -> anyhow::Result<HWND> {
-    let hinstance = unsafe { GetModuleHandleW(None) }?;
+	let hinstance = unsafe { GetModuleHandleW(None) }?;
 
-    let mut rect = RECT::default();
-    GetClientRect(taskbar_hwnd, &mut rect)?;
+	let mut rect = RECT::default();
+	GetClientRect(taskbar_hwnd, &mut rect)?;
 
-    let wc = WNDCLASSW {
-        hInstance: hinstance.into(),
-        lpszClassName: HOST_CLASSNAME,
-        style: CS_HREDRAW | CS_VREDRAW,
-        lpfnWndProc: Some(wndproc_host),
-        ..Default::default()
-    };
+	let wc = WNDCLASSW {
+		hInstance: hinstance.into(),
+		lpszClassName: HOST_CLASSNAME,
+		style: CS_HREDRAW | CS_VREDRAW,
+		lpfnWndProc: Some(wndproc_host),
+		..Default::default()
+	};
 
-    RegisterClassW(&wc);
+	RegisterClassW(&wc);
 
-    let userdata = WndProcUserData { proxy };
+	let userdata = WndProcUserData { proxy };
 
-    let height = if monitor_config.auto_height {
-        rect.bottom - rect.top
-    } else {
-        monitor_config.height
-    };
+	let height = if monitor_config.auto_height {
+		rect.bottom - rect.top
+	} else {
+		monitor_config.height
+	};
 
-    let hwnd = CreateWindowExW(
-        WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP,
-        HOST_CLASSNAME,
-        PCWSTR::null(),
-        WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
-        monitor_config.x,
-        monitor_config.y,
-        monitor_config.width,
-        height,
-        Some(taskbar_hwnd),
-        None,
-        None,
-        Some(Box::into_raw(Box::new(userdata)) as _),
-    )?;
+	let hwnd = CreateWindowExW(
+		WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP,
+		HOST_CLASSNAME,
+		PCWSTR::null(),
+		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
+		monitor_config.x,
+		monitor_config.y,
+		monitor_config.width,
+		height,
+		Some(taskbar_hwnd),
+		None,
+		None,
+		Some(Box::into_raw(Box::new(userdata)) as _),
+	)?;
 
-    SetWindowPos(
-        hwnd,
-        Some(HWND_TOP),
-        0,
-        0,
-        0,
-        0,
-        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
-    )?;
+	SetWindowPos(
+		hwnd,
+		Some(HWND_TOP),
+		0,
+		0,
+		0,
+		0,
+		SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+	)?;
 
-    Ok(hwnd)
+	Ok(hwnd)
 }
 
 struct WndProcUserData {
-    proxy: EventLoopProxy<AppMessage>,
+	proxy: EventLoopProxy<AppMessage>,
 }
 
 impl WndProcUserData {
-    unsafe fn from_hwnd(hwnd: HWND) -> &'static mut Self {
-        &mut *(GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut Self)
-    }
+	unsafe fn from_hwnd(hwnd: HWND) -> &'static mut Self {
+		&mut *(GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut Self)
+	}
 }
 
 unsafe extern "system" fn wndproc_host(
-    hwnd: HWND,
-    msg: u32,
-    wparam: WPARAM,
-    lparam: LPARAM,
+	hwnd: HWND,
+	msg: u32,
+	wparam: WPARAM,
+	lparam: LPARAM,
 ) -> LRESULT {
-    match msg {
-        // Initialize GWLP_USERDATA
-        WM_CREATE => {
-            let create_struct = &*(lparam.0 as *const CREATESTRUCTW);
-            let userdata = create_struct.lpCreateParams as *const WndProcUserData;
-            SetWindowLongPtrW(hwnd, GWLP_USERDATA, userdata as _);
-        }
+	match msg {
+		// Initialize GWLP_USERDATA
+		WM_CREATE => {
+			let create_struct = &*(lparam.0 as *const CREATESTRUCTW);
+			let userdata = create_struct.lpCreateParams as *const WndProcUserData;
+			SetWindowLongPtrW(hwnd, GWLP_USERDATA, userdata as _);
+		}
 
-        // Notify app to update DPI
-        WM_DPICHANGED_AFTERPARENT => {
-            let userdata = WndProcUserData::from_hwnd(hwnd);
-            if let Err(e) = userdata.proxy.send_event(AppMessage::DpiChanged) {
-                tracing::error!("Failed to send `AppMessage::DpiChanged`: {e}")
-            }
-        }
+		// Notify app to update DPI
+		WM_DPICHANGED_AFTERPARENT => {
+			let userdata = WndProcUserData::from_hwnd(hwnd);
+			if let Err(e) = userdata.proxy.send_event(AppMessage::DpiChanged) {
+				tracing::error!("Failed to send `AppMessage::DpiChanged`: {e}")
+			}
+		}
 
-        // Resize children when this host is resized
-        WM_SIZE => {
-            let mut rect = RECT::default();
-            if GetClientRect(hwnd, &mut rect).is_ok() {
-                let width = rect.right - rect.left;
-                let height = rect.bottom - rect.top;
+		// Resize children when this host is resized
+		WM_SIZE => {
+			let mut rect = RECT::default();
+			if GetClientRect(hwnd, &mut rect).is_ok() {
+				let width = rect.right - rect.left;
+				let height = rect.bottom - rect.top;
 
-                for child in utils::enum_child_windows(hwnd) {
-                    if let Err(e) = SetWindowPos(
-                        child,
-                        None,
-                        0,
-                        0,
-                        width,
-                        height,
-                        SWP_NOMOVE | SWP_FRAMECHANGED,
-                    ) {
-                        tracing::error!("Failed to resize child to match host: {e}")
-                    }
-                }
-            }
-        }
+				for child in utils::enum_child_windows(hwnd) {
+					if let Err(e) = SetWindowPos(
+						child,
+						None,
+						0,
+						0,
+						width,
+						height,
+						SWP_NOMOVE | SWP_FRAMECHANGED,
+					) {
+						tracing::error!("Failed to resize child to match host: {e}")
+					}
+				}
+			}
+		}
 
-        // Notify app to update system settings like accent colors
-        WM_SETTINGCHANGE => {
-            let userdata = WndProcUserData::from_hwnd(hwnd);
-            if let Err(e) = userdata.proxy.send_event(AppMessage::SystemSettingsChanged) {
-                tracing::error!("Failed to send `AppMessage::SystemSettingsChanged`: {e}")
-            }
-        }
+		// Notify app to update system settings like accent colors
+		WM_SETTINGCHANGE => {
+			let userdata = WndProcUserData::from_hwnd(hwnd);
+			if let Err(e) = userdata.proxy.send_event(AppMessage::SystemSettingsChanged) {
+				tracing::error!("Failed to send `AppMessage::SystemSettingsChanged`: {e}")
+			}
+		}
 
-        // Close children when this host is closed
-        WM_CLOSE => {
-            for child in utils::enum_child_windows(hwnd) {
-                let _ = SendMessageW(child, WM_CLOSE, None, None);
-            }
+		// Close children when this host is closed
+		WM_CLOSE => {
+			for child in utils::enum_child_windows(hwnd) {
+				let _ = SendMessageW(child, WM_CLOSE, None, None);
+			}
 
-            // Drop userdata
-            let userdata = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
-            let userdata = userdata as *mut WndProcUserData;
-            drop(Box::from_raw(userdata));
-        }
+			// Drop userdata
+			let userdata = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+			let userdata = userdata as *mut WndProcUserData;
+			drop(Box::from_raw(userdata));
+		}
 
-        _ => {}
-    }
+		_ => {}
+	}
 
-    DefWindowProcW(hwnd, msg, wparam, lparam)
+	DefWindowProcW(hwnd, msg, wparam, lparam)
 }

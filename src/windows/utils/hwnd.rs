@@ -4,9 +4,9 @@ use windows::Win32::Foundation::HWND;
 pub struct HwndWithDrop(pub HWND);
 
 impl Drop for HwndWithDrop {
-    fn drop(&mut self) {
-        unsafe {
-            let _ = windows::Win32::UI::WindowsAndMessaging::DestroyWindow(self.0);
-        }
-    }
+	fn drop(&mut self) {
+		unsafe {
+			let _ = windows::Win32::UI::WindowsAndMessaging::DestroyWindow(self.0);
+		}
+	}
 }

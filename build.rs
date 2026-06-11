@@ -19,10 +19,10 @@ const MANIFEST: &str = r#"<?xml version="1.0" encoding="utf-8"?>
 "#;
 
 fn main() {
-    #[cfg(target_os = "windows")]
-    winresource::WindowsResource::new()
-        .set_icon_with_id("assets/icon.ico", "1")
-        .set_manifest(MANIFEST)
-        .compile()
-        .expect("Failed to compile resource file");
+	#[cfg(target_os = "windows")]
+	winresource::WindowsResource::new()
+		.set_icon_with_id("assets/icon.ico", "1")
+		.set_manifest(MANIFEST)
+		.compile()
+		.expect("Failed to compile resource file");
 }
