@@ -8,65 +8,65 @@ use windows::Win32::Foundation::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 
 pub fn enum_child_windows(hwnd: HWND) -> Vec<HWND> {
-    let mut children = Vec::new();
+	let mut children = Vec::new();
 
-    let children_ptr = &mut children as *mut Vec<HWND>;
-    let children_ptr = LPARAM(children_ptr as _);
+	let children_ptr = &mut children as *mut Vec<HWND>;
+	let children_ptr = LPARAM(children_ptr as _);
 
-    unsafe extern "system" fn proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        let windows = &mut *(lparam.0 as *mut Vec<HWND>);
-        windows.push(hwnd);
-        true.into()
-    }
+	unsafe extern "system" fn proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+		let windows = &mut *(lparam.0 as *mut Vec<HWND>);
+		windows.push(hwnd);
+		true.into()
+	}
 
-    let _ = unsafe { EnumChildWindows(Some(hwnd), Some(proc), children_ptr) };
+	let _ = unsafe { EnumChildWindows(Some(hwnd), Some(proc), children_ptr) };
 
-    children
+	children
 }
 
 pub fn get_class_name(hwnd: HWND) -> String {
-    let mut buffer: [u16; 256] = [0; 256];
-    let len = unsafe { GetClassNameW(hwnd, &mut buffer) };
-    String::from_utf16_lossy(&buffer[..len as usize])
+	let mut buffer: [u16; 256] = [0; 256];
+	let len = unsafe { GetClassNameW(hwnd, &mut buffer) };
+	String::from_utf16_lossy(&buffer[..len as usize])
 }
 
 pub struct TopLevelWindowsIterator {
-    current: HWND,
+	current: HWND,
 }
 
 impl TopLevelWindowsIterator {
-    pub fn new() -> Self {
-        Self {
-            current: unsafe { GetTopWindow(None).unwrap_or_default() },
-        }
-    }
+	pub fn new() -> Self {
+		Self {
+			current: unsafe { GetTopWindow(None).unwrap_or_default() },
+		}
+	}
 
-    pub fn iter(&self) -> impl Iterator<Item = windows::core::Result<HWND>> {
-        TopLevelWindowsIterator {
-            current: self.current,
-        }
-    }
+	pub fn iter(&self) -> impl Iterator<Item = windows::core::Result<HWND>> {
+		TopLevelWindowsIterator {
+			current: self.current,
+		}
+	}
 }
 
 impl Iterator for TopLevelWindowsIterator {
-    type Item = windows::core::Result<HWND>;
+	type Item = windows::core::Result<HWND>;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Ok(hwnd) = unsafe { GetWindow(self.current, GW_HWNDNEXT) } {
-            self.current = hwnd;
-            Some(Ok(hwnd))
-        } else {
-            None
-        }
-    }
+	fn next(&mut self) -> Option<Self::Item> {
+		if let Ok(hwnd) = unsafe { GetWindow(self.current, GW_HWNDNEXT) } {
+			self.current = hwnd;
+			Some(Ok(hwnd))
+		} else {
+			None
+		}
+	}
 }
 
 pub fn egui_color_from_color(color: &str) -> Option<egui::Color32> {
-    let rgba = color::parse_color(color)
-        .ok()?
-        .to_alpha_color::<color::Srgb>()
-        .to_rgba8();
-    Some(egui::Color32::from_rgba_unmultiplied(
-        rgba.r, rgba.g, rgba.b, rgba.a,
-    ))
+	let rgba = color::parse_color(color)
+		.ok()?
+		.to_alpha_color::<color::Srgb>()
+		.to_rgba8();
+	Some(egui::Color32::from_rgba_unmultiplied(
+		rgba.r, rgba.g, rgba.b, rgba.a,
+	))
 }
