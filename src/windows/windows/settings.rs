@@ -113,32 +113,53 @@ impl SettingsWindowView {
 		}
 	}
 
-	fn global_active_indicator_color_ui(&mut self, ui: &mut egui::Ui) {
-		ui.label("Active Indicator");
+	fn global_color_ui(ui: &mut egui::Ui, label: &str, color: &mut Option<String>) {
+		ui.label(label);
 
-		let colors = &self.config.colors;
-		let mut color = colors.active_indicator.clone().unwrap_or_default();
-
-		let text_edit = egui::TextEdit::singleline(&mut color);
+		let mut value = color.clone().unwrap_or_default();
+		let text_edit = egui::TextEdit::singleline(&mut value);
 		let text_edit = text_edit.hint_text("#FFFFFFFF");
 
 		if ui.add(text_edit).changed() {
-			self.config.colors.active_indicator = (!color.is_empty()).then_some(color);
+			*color = (!value.is_empty()).then_some(value);
 		}
 	}
 
-	fn global_busy_indicator_color_ui(&mut self, ui: &mut egui::Ui) {
-		ui.label("Busy Indicator");
+	fn global_workspace_colors_ui(&mut self, ui: &mut egui::Ui) {
+		Self::global_color_ui(ui, "Background", &mut self.config.colors.background);
+		ui.end_row();
 
-		let colors = &self.config.colors;
-		let mut color = colors.busy_indicator.clone().unwrap_or_default();
+		Self::global_color_ui(
+			ui,
+			"Busy Background",
+			&mut self.config.colors.busy_background,
+		);
+		ui.end_row();
 
-		let text_edit = egui::TextEdit::singleline(&mut color);
-		let text_edit = text_edit.hint_text("#FFFFFFFF");
+		Self::global_color_ui(
+			ui,
+			"Active Background",
+			&mut self.config.colors.active_background,
+		);
+		ui.end_row();
 
-		if ui.add(text_edit).changed() {
-			self.config.colors.busy_indicator = (!color.is_empty()).then_some(color);
-		}
+		Self::global_color_ui(ui, "Border", &mut self.config.colors.border);
+		ui.end_row();
+
+		Self::global_color_ui(ui, "Busy Border", &mut self.config.colors.busy_border);
+		ui.end_row();
+
+		Self::global_color_ui(ui, "Active Border", &mut self.config.colors.active_border);
+		ui.end_row();
+
+		Self::global_color_ui(
+			ui,
+			"Active Indicator",
+			&mut self.config.colors.active_indicator,
+		);
+		ui.end_row();
+
+		Self::global_color_ui(ui, "Busy Indicator", &mut self.config.colors.busy_indicator);
 	}
 
 	fn global_settings_ui(&mut self, ui: &mut egui::Ui) {
@@ -161,10 +182,7 @@ impl SettingsWindowView {
 				self.global_font_weight_ui(ui);
 				ui.end_row();
 
-				self.global_active_indicator_color_ui(ui);
-				ui.end_row();
-
-				self.global_busy_indicator_color_ui(ui);
+				self.global_workspace_colors_ui(ui);
 				ui.end_row();
 			});
 	}
@@ -292,48 +310,68 @@ impl SettingsWindowView {
 		});
 	}
 
-	fn active_indicator_color_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
-		let monitor_config = self.config.get_monitor_mut(monitor_id);
-		ui.label("Active Indicator");
+	fn color_ui(ui: &mut egui::Ui, label: &str, color: &mut Option<String>) {
+		ui.label(label);
 		ui.horizontal(|ui| {
-			let colors = &monitor_config.colors;
+			let mut inherit = color.is_none();
+			let mut value = color.clone().unwrap_or_default();
 
-			let mut inherit = colors.active_indicator.is_none();
-			let mut color = colors.active_indicator.clone().unwrap_or_default();
-
-			let text_edit = egui::TextEdit::singleline(&mut color);
+			let text_edit = egui::TextEdit::singleline(&mut value);
 			let text_edit = text_edit.hint_text("#FFFFFFFF");
 			if ui.add_enabled(!inherit, text_edit).changed() {
-				monitor_config.colors.active_indicator = (!color.is_empty()).then_some(color);
+				*color = (!value.is_empty()).then_some(value);
 			}
 
 			if ui.checkbox(&mut inherit, "Inherit").changed() {
-				monitor_config.colors.active_indicator =
-					if inherit { None } else { Some(String::new()) };
+				*color = if inherit { None } else { Some(String::new()) };
 			}
 		});
 	}
 
-	fn busy_indicator_color_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
+	fn workspace_colors_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
 		let monitor_config = self.config.get_monitor_mut(monitor_id);
-		ui.label("Busy Indicator");
-		ui.horizontal(|ui| {
-			let colors = &monitor_config.colors;
+		Self::color_ui(ui, "Background", &mut monitor_config.colors.background);
+		ui.end_row();
 
-			let mut inherit = colors.busy_indicator.is_none();
-			let mut color = colors.busy_indicator.clone().unwrap_or_default();
+		Self::color_ui(
+			ui,
+			"Busy Background",
+			&mut monitor_config.colors.busy_background,
+		);
+		ui.end_row();
 
-			let text_edit = egui::TextEdit::singleline(&mut color);
-			let text_edit = text_edit.hint_text("#FFFFFFFF");
-			if ui.add_enabled(!inherit, text_edit).changed() {
-				monitor_config.colors.busy_indicator = (!color.is_empty()).then_some(color);
-			}
+		Self::color_ui(
+			ui,
+			"Active Background",
+			&mut monitor_config.colors.active_background,
+		);
+		ui.end_row();
 
-			if ui.checkbox(&mut inherit, "Inherit").changed() {
-				monitor_config.colors.busy_indicator =
-					if inherit { None } else { Some(String::new()) };
-			}
-		});
+		Self::color_ui(ui, "Border", &mut monitor_config.colors.border);
+		ui.end_row();
+
+		Self::color_ui(ui, "Busy Border", &mut monitor_config.colors.busy_border);
+		ui.end_row();
+
+		Self::color_ui(
+			ui,
+			"Active Border",
+			&mut monitor_config.colors.active_border,
+		);
+		ui.end_row();
+
+		Self::color_ui(
+			ui,
+			"Active Indicator",
+			&mut monitor_config.colors.active_indicator,
+		);
+		ui.end_row();
+
+		Self::color_ui(
+			ui,
+			"Busy Indicator",
+			&mut monitor_config.colors.busy_indicator,
+		);
 	}
 
 	fn monitor_settings_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
@@ -364,10 +402,7 @@ impl SettingsWindowView {
 		self.font_weight_ui(ui, monitor_id);
 		ui.end_row();
 
-		self.active_indicator_color_ui(ui, monitor_id);
-		ui.end_row();
-
-		self.busy_indicator_color_ui(ui, monitor_id);
+		self.workspace_colors_ui(ui, monitor_id);
 		ui.end_row();
 	}
 
