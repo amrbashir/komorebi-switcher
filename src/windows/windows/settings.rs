@@ -92,6 +92,13 @@ impl SettingsWindowView {
 		));
 	}
 
+	fn global_uniform_workspace_button_widths_ui(&mut self, ui: &mut egui::Ui) {
+		ui.add(egui::Checkbox::new(
+			&mut self.config.uniform_workspace_button_widths,
+			"Uniform workspace button widths",
+		));
+	}
+
 	fn global_font_family_ui(&mut self, ui: &mut egui::Ui) {
 		ui.label("Font Family");
 
@@ -153,6 +160,9 @@ impl SettingsWindowView {
 				ui.end_row();
 
 				self.global_hide_empty_workspaces_ui(ui);
+				ui.end_row();
+
+				self.global_uniform_workspace_button_widths_ui(ui);
 				ui.end_row();
 
 				self.global_font_family_ui(ui);
@@ -252,6 +262,31 @@ impl SettingsWindowView {
 
 		if before != selected {
 			monitor_config.hide_empty_workspaces = selected.into();
+		}
+	}
+
+	fn uniform_workspace_button_widths_ui(&mut self, ui: &mut egui::Ui, monitor_id: &str) {
+		let monitor_config = self.config.get_monitor_mut(monitor_id);
+
+		ui.label("Uniform workspace button widths");
+
+		let mut selected: ActivationOption = monitor_config.uniform_workspace_button_widths.into();
+		let before = selected;
+
+		egui::ComboBox::new("uniform_workspace_button_widths", "")
+			.selected_text(format!("{}", selected))
+			.show_ui(ui, |ui| {
+				for option in [
+					ActivationOption::Inherit,
+					ActivationOption::Enable,
+					ActivationOption::Disable,
+				] {
+					ui.selectable_value(&mut selected, option, format!("{}", option));
+				}
+			});
+
+		if before != selected {
+			monitor_config.uniform_workspace_button_widths = selected.into();
 		}
 	}
 
@@ -356,6 +391,9 @@ impl SettingsWindowView {
 		ui.end_row();
 
 		self.hide_empty_workspaces_ui(ui, monitor_id);
+		ui.end_row();
+
+		self.uniform_workspace_button_widths_ui(ui, monitor_id);
 		ui.end_row();
 
 		self.font_family_ui(ui, monitor_id);

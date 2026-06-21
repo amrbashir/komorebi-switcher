@@ -32,6 +32,8 @@ pub struct MonitorConfig {
 	pub show_layout_button: Option<bool>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub hide_empty_workspaces: Option<bool>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub uniform_workspace_button_widths: Option<bool>,
 
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub font_family: Option<String>,
@@ -62,6 +64,7 @@ impl Default for MonitorConfig {
 		Self {
 			show_layout_button: None,
 			hide_empty_workspaces: None,
+			uniform_workspace_button_widths: None,
 			font_family: None,
 			font_weight: None,
 			colors: ColorsConfig::default(),
@@ -81,6 +84,8 @@ pub struct Config {
 	pub show_layout_button: bool,
 	#[serde(default)]
 	pub hide_empty_workspaces: bool,
+	#[serde(default)]
+	pub uniform_workspace_button_widths: bool,
 
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub font_family: Option<String>,
