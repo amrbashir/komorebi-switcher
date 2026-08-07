@@ -3,4 +3,7 @@ ignore = [
   # `paste` crate is no longer maintained https://rustsec.org/advisories/RUSTSEC-2024-0436
   # It's a dependency of `wgpu`
   "RUSTSEC-2024-0436",
+  # `event-listener` allows `!Send` tags to cross thread boundaries via `StackSlot`
+  # https://rustsec.org/advisories/RUSTSEC-2026-0221
+  "RUSTSEC-2026-0221",
 ]
