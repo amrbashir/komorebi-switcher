@@ -7,6 +7,10 @@
 - Added indicator colors via `[colors]` and `[monitors.<id>.colors]`.
 - Added `font_family` and `font_weight` config options
 
+### Fixed
+
+- Fixed clicking a button in the switcher on macOS 27.
+
 ## [0.10.1] - 2026-02-26
 
 ### Fixed
@@ -136,8 +140,8 @@
 - Fixed incorrect size when monitor DPI changes.
 - Fixed dragging mode sometimes not working.
 
-  There is still a bug that entering drag mode consecutively won't work, you need to left-click a workspace at least one time
-  before entering drag mode again.
+    There is still a bug that entering drag mode consecutively won't work, you need to left-click a workspace at least one time
+    before entering drag mode again.
 
 ## [0.4.2] - 2025-2-24
 
@@ -184,8 +188,8 @@
 
 - Changed dragging mode for the switcher to address bugs where `Esc` couldn't exist dragging mode.
 
-  Now after choosing the "Move" context menu item, you need to click and drag the switcher around.
-  It will save its position and exit out of dragging mode once you release the mouse click.
+    Now after choosing the "Move" context menu item, you need to click and drag the switcher around.
+    It will save its position and exit out of dragging mode once you release the mouse click.
 
 ## [0.2.0] - 2025-2-12
 
