@@ -40,6 +40,12 @@ show_layout_button    = false
 hide_empty_workspaces = false
 
 [colors]
+background = "#00000000"
+busy_background = "#00000000"
+active_background = "#FFFFFF1A"
+border = "#00000000"
+busy_border = "#00000000"
+active_border = "#FFFFFF05"
 active_indicator = "#4CC2FFCC"
 busy_indicator = "rgba(180, 173, 170, 0.6)"
 
@@ -61,7 +67,9 @@ width                 = 200      # Ignored if `auto_width` is enabled
 height                = 40       # Ignored if `auto_height` is enabled
 
 [monitors.0.colors]
-active_indicator = "#4CC2FFCC"          # Can be removed to use the global setting
+active_background = "#00000000"    # Can be removed to use the global setting
+active_border = "#00000000"        # Can be removed to use the global setting
+active_indicator = "#4CC2FFCC"     # Can be removed to use the global setting
 busy_indicator = "#B4ADAA80"       # Can be removed to use the global setting
 ```
 

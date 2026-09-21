@@ -98,6 +98,12 @@ impl WorkspaceButton {
 		mtm: MainThreadMarker,
 		workspace: &crate::komorebi::Workspace,
 		font: Option<&NSFont>,
+		background_color: Option<&str>,
+		busy_background_color: Option<&str>,
+		active_background_color: Option<&str>,
+		border_color: Option<&str>,
+		busy_border_color: Option<&str>,
+		active_border_color: Option<&str>,
 		active_indicator_color: Option<&str>,
 		busy_indicator_color: Option<&str>,
 	) -> Retained<Self> {
@@ -133,13 +139,39 @@ impl WorkspaceButton {
 		width_constraint.setActive(true);
 		height_constraint.setActive(true);
 
-		// Set background color based on active state
 		let bg_color = if workspace.focused {
-			NSColor::colorWithWhite_alpha(1.0, 0.1).CGColor()
+			active_background_color
+				.and_then(crate::macos::utils::ns_color_from_color)
+				.unwrap_or_else(|| NSColor::colorWithWhite_alpha(1.0, 0.1))
+				.CGColor()
+		} else if !workspace.is_empty {
+			busy_background_color
+				.or(background_color)
+				.and_then(crate::macos::utils::ns_color_from_color)
+				.unwrap_or_else(NSColor::clearColor)
+				.CGColor()
 		} else {
-			NSColor::clearColor().CGColor()
+			background_color
+				.and_then(crate::macos::utils::ns_color_from_color)
+				.unwrap_or_else(NSColor::clearColor)
+				.CGColor()
 		};
 		let _: () = unsafe { msg_send![&layer, setBackgroundColor: &*bg_color] };
+
+		let border_color = if workspace.focused {
+			active_border_color.and_then(crate::macos::utils::ns_color_from_color)
+		} else if !workspace.is_empty {
+			busy_border_color
+				.or(border_color)
+				.and_then(crate::macos::utils::ns_color_from_color)
+		} else {
+			border_color.and_then(crate::macos::utils::ns_color_from_color)
+		};
+		if let Some(border_color) = border_color {
+			let border_color = border_color.CGColor();
+			let _: () = unsafe { msg_send![&layer, setBorderColor: &*border_color] };
+			let _: () = unsafe { msg_send![&layer, setBorderWidth: 1.0] };
+		}
 
 		// Create indicator view
 		let indicator = NSView::new(mtm);
