@@ -2,8 +2,8 @@ use std::cell::{OnceCell, RefCell};
 
 use dispatch::Queue;
 use objc2::rc::Retained;
-use objc2::runtime::ProtocolObject;
-use objc2::{define_class, msg_send, DefinedClass, MainThreadOnly};
+use objc2::runtime::{AnyObject, ProtocolObject};
+use objc2::{define_class, extern_protocol, msg_send, sel, DefinedClass, MainThreadOnly};
 use objc2_app_kit::{
 	NSApp, NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSFont,
 	NSStatusBar, NSStatusItem, NSTextAlignment, NSTextField, NSUserInterfaceLayoutOrientation,
@@ -26,6 +26,22 @@ mod windows;
 mod workspace_button;
 mod workspaces_stack_view;
 
+// macOS 27 API, not yet exposed by objc2-app-kit. Only install this delegate
+// when the status item supports it.
+extern_protocol!(
+	unsafe trait NSStatusItemExpandedInterfaceDelegate:
+		NSObjectProtocol + MainThreadOnly
+	{
+		#[unsafe(method(statusItem:didBeginExpandedInterfaceSession:))]
+		#[unsafe(method_family = none)]
+		fn status_item_did_begin(&self, item: &NSStatusItem, session: &AnyObject);
+
+		#[unsafe(method(statusItemDidEndExpandedInterfaceSession:animated:))]
+		#[unsafe(method_family = none)]
+		fn status_item_did_end(&self, item: &NSStatusItem, animated: bool);
+	}
+);
+
 #[derive(Default)]
 pub struct AppDelegateIvars {
 	ns_status_item: OnceCell<Retained<NSStatusItem>>,
@@ -44,6 +60,21 @@ define_class!(
 	pub struct AppDelegate;
 
 	unsafe impl NSObjectProtocol for AppDelegate {}
+
+	unsafe impl NSStatusItemExpandedInterfaceDelegate for AppDelegate {
+		#[unsafe(method(statusItem:didBeginExpandedInterfaceSession:))]
+		fn status_item_did_begin(&self, _item: &NSStatusItem, session: &AnyObject) {
+			// A workspace switch has no expanded interface. End system tracking
+			// immediately so macOS doesn't highlight the entire status item.
+			let _: () = unsafe { msg_send![session, cancel] };
+			if let Some(stack) = self.ivars().ns_stack_view.get() {
+				stack.click_button_under_cursor();
+			}
+		}
+
+		#[unsafe(method(statusItemDidEndExpandedInterfaceSession:animated:))]
+		fn status_item_did_end(&self, _item: &NSStatusItem, _animated: bool) {}
+	}
 
 	unsafe impl NSApplicationDelegate for AppDelegate {
 		#[unsafe(method(applicationDidFinishLaunching:))]
@@ -66,6 +97,12 @@ define_class!(
 
 			let ns_status_bar = NSStatusBar::systemStatusBar();
 			let ns_status_item = ns_status_bar.statusItemWithLength(NSVariableStatusItemLength);
+			if ns_status_item.respondsToSelector(sel!(setExpandedInterfaceDelegate:)) {
+				let delegate =
+					ProtocolObject::<dyn NSStatusItemExpandedInterfaceDelegate>::from_ref(self);
+				let _: () =
+					unsafe { msg_send![&ns_status_item, setExpandedInterfaceDelegate: delegate] };
+			}
 
 			let stack_view = {
 				let stack = WorkspacesStackView::new(mtm);

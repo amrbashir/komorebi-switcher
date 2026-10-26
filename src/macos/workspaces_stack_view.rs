@@ -40,10 +40,8 @@ define_class!(
 		}
 
 		#[unsafe(method(mouseDown:))]
-		fn mouse_down(&self, event: &NSEvent) {
-			if let Some(button) = self.button_under_cursor() {
-				unsafe { button.performClick(None) };
-			}
+		fn mouse_down(&self, _event: &NSEvent) {
+			self.click_button_under_cursor();
 		}
 
 		#[unsafe(method(rightMouseDown:))]
@@ -70,6 +68,12 @@ define_class!(
 );
 
 impl WorkspacesStackView {
+	pub fn click_button_under_cursor(&self) {
+		if let Some(button) = self.button_under_cursor() {
+			unsafe { button.performClick(None) };
+		}
+	}
+
 	pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
 		let this = Self::alloc(mtm).set_ivars(WorkspacesStackViewIvars::default());
 		let this: Retained<Self> = unsafe { msg_send![super(this), init] };
