@@ -428,13 +428,14 @@ impl EguiView for SettingsWindowView {
 		// Preview config on each update
 		self.preview_config();
 
-		egui::TopBottomPanel::bottom("actions").show(ctx, |ui| {
+		let mut root_ui = egui::Ui::new(ctx.clone(), egui::Id::new("settings"), Default::default());
+		egui::Panel::bottom("actions").show_inside(&mut root_ui, |ui| {
 			ui.add_space(4.0);
 			self.actions_ui(ui);
 			ui.add_space(4.0);
 		});
 
-		egui::CentralPanel::default().show(ctx, |ui| {
+		egui::CentralPanel::default().show_inside(&mut root_ui, |ui| {
 			egui::ScrollArea::vertical().show(ui, |ui| self.ui(ui));
 		});
 	}

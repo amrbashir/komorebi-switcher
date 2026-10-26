@@ -10,10 +10,14 @@ on:
     paths:
       - "**/Cargo.lock"
       - "**/Cargo.toml"
+      - ".cargo/audit.toml"
+      - ".github/workflows/audit.yml"
   pull_request:
     paths:
       - "**/Cargo.lock"
       - "**/Cargo.toml"
+      - ".cargo/audit.toml"
+      - ".github/workflows/audit.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

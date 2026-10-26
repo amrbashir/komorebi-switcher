@@ -39,9 +39,9 @@ pub struct App {
 
 impl App {
 	pub fn new(proxy: EventLoopProxy<AppMessage>) -> anyhow::Result<Self> {
-		let wgpu_instance = egui_wgpu::wgpu::Instance::new(&wgpu::InstanceDescriptor {
+		let wgpu_instance = egui_wgpu::wgpu::Instance::new(wgpu::InstanceDescriptor {
 			backends: wgpu::Backends::DX12,
-			..Default::default()
+			..wgpu::InstanceDescriptor::new_without_display_handle()
 		});
 
 		let komorebi_state = crate::komorebi::read_state().unwrap_or_default();

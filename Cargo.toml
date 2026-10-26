@@ -21,7 +21,7 @@ strip = true      # Ensures debug symbols are removed.
 winresource = "0.1"
 
 [dependencies]
-anyhow = "1"
+anyhow = "1.0.103"
 serde_json = "1.0"
 dirs = "6.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -30,19 +30,27 @@ toml = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
-rfd = "0.15.3"
+# The app uses native dialogs on Windows and macOS, not Linux portal backends.
+rfd = { version = "0.15.4", default-features = false }
 font-kit = "0.14.3"
 color = "0.3.2"
 
 [target."cfg(windows)".dependencies]
-winit = "0.30"
+winit = { version = "0.30", default-features = false, features = ["rwh_06"] }
 raw-window-handle = "0.6"
-wgpu = "24.0"
+wgpu = { version = "29", default-features = false, features = [
+  "std",
+  "dx12",
+  "wgsl",
+] }
 pollster = "0.4"
-egui = "0.31"
-egui-winit = "0.31"
-egui-wgpu = "0.31"
-egui_animation = "0.8"
+egui = "0.34.3"
+egui-winit = { version = "0.34.3", default-features = false, features = [
+  "clipboard",
+  "links",
+] }
+egui-wgpu = { version = "0.34.3", default-features = false }
+egui_animation = "0.11"
 windows-registry = "0.5"
 muda = "0.17"
 tray-icon = "0.21"
@@ -70,6 +78,3 @@ dispatch = "0.2.0"
 objc2 = "0.6.3"
 objc2-foundation = "0.3.2"
 objc2-app-kit = "0.3.2"
-
-[patch.crates-io]
-wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "2f607d3e64d5da618b30c084fb59cf3abacf9aa1" }
