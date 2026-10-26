@@ -42,15 +42,13 @@ impl WgpuSurface {
 		let height = size.height.max(1);
 
 		let (device, queue) = adapter
-			.request_device(
-				&wgpu::DeviceDescriptor {
-					label: None,
-					required_features: wgpu::Features::empty(),
-					required_limits: wgpu::Limits::default(),
-					memory_hints: wgpu::MemoryHints::MemoryUsage,
-				},
-				None,
-			)
+			.request_device(&wgpu::DeviceDescriptor {
+				label: None,
+				required_features: wgpu::Features::empty(),
+				required_limits: wgpu::Limits::default(),
+				memory_hints: wgpu::MemoryHints::MemoryUsage,
+				..Default::default()
+			})
 			.await?;
 
 		let swapchain_capabilities = surface.get_capabilities(&adapter);
@@ -118,7 +116,22 @@ impl WgpuSurface {
 			pixels_per_point: self.egui_renderer.egui_ctx().pixels_per_point(),
 		};
 
-		let surface_texture = self.surface.get_current_texture()?;
+		let (surface_texture, reconfigure) = match self.surface.get_current_texture() {
+			wgpu::CurrentSurfaceTexture::Success(texture) => (texture, false),
+			wgpu::CurrentSurfaceTexture::Suboptimal(texture) => (texture, true),
+			wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
+				return Ok(());
+			}
+			wgpu::CurrentSurfaceTexture::Outdated => {
+				self.surface.configure(&self.device, &self.surface_config);
+				window.request_redraw();
+				return Ok(());
+			}
+			wgpu::CurrentSurfaceTexture::Lost => anyhow::bail!("GPU surface lost"),
+			wgpu::CurrentSurfaceTexture::Validation => {
+				anyhow::bail!("GPU surface validation failed");
+			}
+		};
 
 		let surface_view = surface_texture
 			.texture
@@ -147,6 +160,9 @@ impl WgpuSurface {
 
 		self.queue.submit(Some(encoder.finish()));
 		surface_texture.present();
+		if reconfigure {
+			self.surface.configure(&self.device, &self.surface_config);
+		}
 
 		Ok(())
 	}

@@ -72,13 +72,14 @@ impl egui::Widget for WorkspaceButton<'_> {
 		// draw background
 		if response.hovered() || self.workspace.focused {
 			let color = if dark_mode {
-				egui::Color32::from_rgba_unmultiplied(255, 255, 255, 1)
+				// egui premultiplies in gamma space; use a visible 5% white fill.
+				egui::Color32::from_white_alpha(13)
 			} else {
 				egui::Color32::from_rgba_unmultiplied(255, 255, 255, 30)
 			};
 
 			let stroke_color = if dark_mode {
-				egui::Color32::from_rgba_unmultiplied(255, 255, 255, 2)
+				egui::Color32::from_white_alpha(22)
 			} else {
 				egui::Color32::from_rgba_unmultiplied(33, 33, 33, 33)
 			};

@@ -427,20 +427,23 @@ impl SwitcherWindowView {
 		ctx.set_visuals(visuals);
 
 		// Create a frame with margins
-		let frame = egui::Frame::central_panel(&ctx.style());
+		let frame = egui::Frame::central_panel(&ctx.global_style());
 
 		// Create central panel with the margined frame
 		let total_margin = frame.total_margin();
-		egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
-			let response = ui.horizontal_centered(|ui| {
-				self.switcher_ui(ui, config, monitor_config);
-				ui.min_rect()
-			});
+		let mut root_ui = egui::Ui::new(ctx.clone(), egui::Id::new("switcher"), Default::default());
+		egui::CentralPanel::default()
+			.frame(frame)
+			.show_inside(&mut root_ui, |ui| {
+				let response = ui.horizontal_centered(|ui| {
+					self.switcher_ui(ui, config, monitor_config);
+					ui.min_rect()
+				});
 
-			// Use the content rect from inside the horizontal layout,
-			// expanded by the frame's total margin (inner + outer + stroke).
-			response.inner.expand2(total_margin.right_bottom())
-		})
+				// Use the content rect from inside the horizontal layout,
+				// expanded by the frame's total margin (inner + outer + stroke).
+				response.inner.expand2(total_margin.right_bottom())
+			})
 	}
 }
 

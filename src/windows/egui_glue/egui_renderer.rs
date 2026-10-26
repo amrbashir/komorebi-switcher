@@ -37,9 +37,11 @@ impl EguiRenderer {
 		let egui_renderer = egui_wgpu::Renderer::new(
 			device,
 			output_color_format,
-			output_depth_format,
-			msaa_samples,
-			true,
+			egui_wgpu::RendererOptions {
+				depth_stencil_format: output_depth_format,
+				msaa_samples,
+				..Default::default()
+			},
 		);
 
 		Self {
@@ -99,6 +101,7 @@ impl EguiRenderer {
 			color_attachments: &[Some(wgpu::RenderPassColorAttachment {
 				view: window_surface_view,
 				resolve_target: None,
+				depth_slice: None,
 				ops: wgpu::Operations {
 					load: wgpu::LoadOp::Load,
 					store: wgpu::StoreOp::Store,
@@ -108,6 +111,7 @@ impl EguiRenderer {
 			timestamp_writes: None,
 			label: Some("egui main render pass"),
 			occlusion_query_set: None,
+			multiview_mask: None,
 		});
 
 		self.renderer

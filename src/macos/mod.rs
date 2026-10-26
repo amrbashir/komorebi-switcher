@@ -29,6 +29,14 @@ mod workspaces_stack_view;
 // macOS 27 API, not yet exposed by objc2-app-kit. Only install this delegate
 // when the status item supports it.
 extern_protocol!(
+	/// Receives lifecycle callbacks for a status item's expanded interface.
+	///
+	/// # Safety
+	///
+	/// Implementations must use the Objective-C signatures declared by
+	/// `NSStatusItemExpandedInterfaceDelegate` and run on the main thread.
+	// Clippy does not recognize the safety docs forwarded by this macro.
+	#[allow(clippy::missing_safety_doc)]
 	unsafe trait NSStatusItemExpandedInterfaceDelegate:
 		NSObjectProtocol + MainThreadOnly
 	{
