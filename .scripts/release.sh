@@ -1,9 +1,11 @@
 #!/bin/bash
 
+set -euo pipefail
+
 version="$1"
 
 path="Cargo.toml"
-sed -i -E "s/version = \"[0-9]+\.[0-9]+\.[0-9]+\"/version = \"$version\"/" "$path"
+sed -i -E "/^\[package\]$/,/^\[/s/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/version = \"$version\"/" "$path"
 
 cargo update -p komorebi-switcher # update the lock file
 

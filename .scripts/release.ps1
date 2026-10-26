@@ -1,7 +1,17 @@
 $version = $args[0];
 
 $path = "Cargo.toml"
-(Get-Content $path) -replace "version = `"[0-9]+.[0-9]+.[0-9]+`"", "version = `"$version`"" | Set-Content $path
+$inPackage = $false
+(Get-Content $path) | ForEach-Object {
+    if ($_ -match '^\[') {
+        $inPackage = $_ -eq '[package]'
+    }
+    if ($inPackage) {
+        $_ -replace '^version = "[0-9]+\.[0-9]+\.[0-9]+"', "version = `"$version`""
+    } else {
+        $_
+    }
+} | Set-Content $path
 
 cargo update -p komorebi-switcher # update the lock file
 
