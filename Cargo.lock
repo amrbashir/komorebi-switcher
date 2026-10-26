@@ -1491,7 +1491,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-switcher"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "anyhow",
  "color",

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-10-26
+
 ### Fixed
 
 - Fixed the entire switcher strip highlighting when clicking a workspace button on macOS 27.
