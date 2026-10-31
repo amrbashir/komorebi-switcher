@@ -1,11 +1,14 @@
 use std::cell::OnceCell;
+use std::ptr::NonNull;
 
+use block2::RcBlock;
 use objc2::rc::{Retained, Weak};
+use objc2::runtime::AnyObject;
 use objc2::{define_class, msg_send, sel, AnyThread, DefinedClass, MainThreadOnly, Message};
 use objc2_app_kit::{
-	NSApp, NSBackingStoreType, NSButton, NSColor, NSEvent, NSEventModifierFlags, NSMenu,
-	NSMenuItem, NSPanel, NSStackView, NSStatusWindowLevel, NSTrackingArea, NSTrackingAreaOptions,
-	NSView, NSViewFrameDidChangeNotification, NSWindowCollectionBehavior,
+	NSApp, NSBackingStoreType, NSButton, NSColor, NSEvent, NSEventMask, NSEventModifierFlags,
+	NSMenu, NSMenuItem, NSPanel, NSStackView, NSStatusWindowLevel, NSTrackingArea,
+	NSTrackingAreaOptions, NSView, NSViewFrameDidChangeNotification, NSWindowCollectionBehavior,
 	NSWindowDidMoveNotification, NSWindowDidResizeNotification, NSWindowStyleMask,
 };
 use objc2_foundation::{
@@ -18,10 +21,17 @@ use super::AppDelegate;
 pub struct WorkspacesStackViewIvars {
 	context_menu: OnceCell<Retained<NSMenu>>,
 	input_panel: OnceCell<Retained<StatusBarInputPanel>>,
+	modifier_monitors: OnceCell<Vec<Retained<AnyObject>>>,
 }
 
 impl Drop for WorkspacesStackViewIvars {
 	fn drop(&mut self) {
+		if let Some(monitors) = self.modifier_monitors.get() {
+			for monitor in monitors {
+				unsafe { NSEvent::removeMonitor(monitor) };
+			}
+		}
+
 		let Some(panel) = self.input_panel.get() else {
 			return;
 		};
@@ -48,6 +58,7 @@ define_class!(
 			// Create the panel if not created already.
 			if self.window().is_some() && self.ivars().input_panel.get().is_none() {
 				let panel = StatusBarInputPanel::new(self);
+				self.observe_modifier_flags(&panel);
 				let _ = self.ivars().input_panel.set(panel);
 			}
 
@@ -122,6 +133,38 @@ impl WorkspacesStackView {
 		unsafe { msg_send![super(this), init] }
 	}
 
+	fn observe_modifier_flags(&self, panel: &StatusBarInputPanel) {
+		let weak_panel = Weak::new(panel);
+		let update_passthrough = move |event: NonNull<NSEvent>| {
+			if let Some(panel) = weak_panel.load() {
+				// AppKit keeps the event alive for the duration of the monitor callback.
+				let event = unsafe { event.as_ref() };
+				panel.update_click_passthrough(event.modifierFlags());
+			}
+		};
+
+		// Global monitors receive other apps' events; local monitors receive ours.
+		// Observe modifier changes only, so Command-drag needs no keyboard capture.
+		let global_handler = RcBlock::new(update_passthrough.clone());
+		let global = NSEvent::addGlobalMonitorForEventsMatchingMask_handler(
+			NSEventMask::FlagsChanged,
+			&global_handler,
+		);
+		let local_handler = RcBlock::new(move |event: NonNull<NSEvent>| {
+			update_passthrough(event);
+			event.as_ptr()
+		});
+		// Return the original event unchanged so normal event dispatch continues.
+		let local = unsafe {
+			NSEvent::addLocalMonitorForEventsMatchingMask_handler(
+				NSEventMask::FlagsChanged,
+				&local_handler,
+			)
+		};
+		let monitors = [global, local].into_iter().flatten().collect();
+		let _ = self.ivars().modifier_monitors.set(monitors);
+	}
+
 	fn observe_status_item_geometry(&self) {
 		let Some(panel) = self.ivars().input_panel.get() else {
 			return;
@@ -192,12 +235,6 @@ impl WorkspacesStackView {
 		rect.origin.y -= 1.0;
 		rect.size.width += 2.0;
 		rect.size.height += 2.0;
-
-		// Pass clicks through while the Command key is pressed so the status item can be
-		// dragged and reordered within the menu bar.
-		let flags = NSEvent::modifierFlags_class();
-		let command_pressed = flags.contains(NSEventModifierFlags::Command);
-		panel.setIgnoresMouseEvents(command_pressed);
 
 		if panel.frame() != rect {
 			panel.setFrame_display(rect, true);
@@ -394,6 +431,11 @@ define_class!(
 );
 
 impl StatusBarInputPanel {
+	fn update_click_passthrough(&self, flags: NSEventModifierFlags) {
+		let command_pressed = flags.contains(NSEventModifierFlags::Command);
+		self.setIgnoresMouseEvents(command_pressed);
+	}
+
 	/// macOS highlights the native status item before delivering its click.
 	/// Receive input in a transparent, nonactivating panel while keeping the
 	/// entire button strip inside the original status item.

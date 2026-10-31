@@ -1494,6 +1494,7 @@ name = "komorebi-switcher"
 version = "0.10.3"
 dependencies = [
  "anyhow",
+ "block2 0.6.2",
  "color",
  "dirs",
  "dispatch",
