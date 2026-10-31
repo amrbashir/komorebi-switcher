@@ -1,35 +1,14 @@
-use std::cell::{Cell, RefCell};
-
 use objc2::rc::Retained;
-use objc2::{define_class, msg_send, sel, AnyThread, DefinedClass, MainThreadOnly};
-use objc2_app_kit::{NSButton, NSColor, NSEvent, NSFont, NSTrackingArea, NSTrackingAreaOptions};
+use objc2::{define_class, msg_send, sel, MainThreadOnly};
+use objc2_app_kit::{NSButton, NSColor, NSEvent, NSFont};
 use objc2_foundation::{MainThreadMarker, NSObjectProtocol, NSString};
 
 use crate::komorebi::CycleDirection;
 
-#[derive(Debug)]
-pub struct LayoutButtonIvars {
-	workspace: crate::komorebi::Workspace,
-	is_hovering: Cell<bool>,
-	tracking_area: RefCell<Option<Retained<NSTrackingArea>>>,
-}
-
-impl LayoutButtonIvars {
-	fn new(workspace: crate::komorebi::Workspace) -> Self {
-		Self {
-			workspace,
-			is_hovering: Cell::new(false),
-			tracking_area: RefCell::new(None),
-		}
-	}
-}
-
 define_class!(
-	/// A Custom button representing a workspace in the status bar.
-	/// Displays an indicator for active and busy workspaces.
+	/// A status-bar button that cycles the focused workspace's layout.
 	#[unsafe(super = NSButton)]
 	#[thread_kind = MainThreadOnly]
-	#[ivars = LayoutButtonIvars]
 	#[derive(Debug)]
 	pub struct LayoutButton;
 
@@ -43,7 +22,6 @@ define_class!(
 
 		#[unsafe(method(mouseEntered:))]
 		fn mouse_entered(&self, _event: &NSEvent) {
-			self.ivars().is_hovering.set(true);
 			let layer = self.layer().unwrap();
 			let hover_color = NSColor::colorWithWhite_alpha(1.0, 0.1).CGColor();
 			let _: () = unsafe { msg_send![&layer, setBackgroundColor: &*hover_color] };
@@ -51,39 +29,9 @@ define_class!(
 
 		#[unsafe(method(mouseExited:))]
 		fn mouse_exited(&self, _event: &NSEvent) {
-			if self.ivars().workspace.focused {
-				return;
-			}
-
-			self.ivars().is_hovering.set(false);
 			let layer = self.layer().unwrap();
 			let clear_color = NSColor::clearColor().CGColor();
 			let _: () = unsafe { msg_send![&layer, setBackgroundColor: &*clear_color] };
-		}
-
-		#[unsafe(method(updateTrackingAreas))]
-		fn update_tracking_areas(&self) {
-			// Remove old tracking area if it exists
-			if let Some(old_tracking_area) = self.ivars().tracking_area.borrow().as_ref() {
-				self.removeTrackingArea(old_tracking_area);
-			}
-
-			// Create new tracking area
-			let options = NSTrackingAreaOptions::MouseEnteredAndExited
-				| NSTrackingAreaOptions::ActiveAlways;
-			let tracking_area = unsafe {
-				NSTrackingArea::initWithRect_options_owner_userInfo(
-					NSTrackingArea::alloc(),
-					self.bounds(),
-					options,
-					Some(self),
-					None,
-				)
-			};
-			self.addTrackingArea(&tracking_area);
-
-			// Store tracking area
-			*self.ivars().tracking_area.borrow_mut() = Some(tracking_area);
 		}
 	}
 );
@@ -95,9 +43,8 @@ impl LayoutButton {
 		font: Option<&NSFont>,
 	) -> Retained<Self> {
 		// Create button
-		let this = Self::alloc(mtm).set_ivars(LayoutButtonIvars::new(workspace.clone()));
 		// SAFETY: The signature of `NSButton`'s `init` method is correct.
-		let this: Retained<Self> = unsafe { msg_send![super(this), init] };
+		let this: Retained<Self> = unsafe { msg_send![Self::alloc(mtm), init] };
 
 		// Configure button
 		this.setTitle(&NSString::from_str(&workspace.layout));
@@ -120,10 +67,6 @@ impl LayoutButton {
 			.heightAnchor()
 			.constraintGreaterThanOrEqualToConstant(24.0);
 		height_constraint.setActive(true);
-
-		// Set background color based on active state
-		let bg_color = NSColor::clearColor().CGColor();
-		let _: () = unsafe { msg_send![&layer, setBackgroundColor: &*bg_color] };
 
 		this
 	}

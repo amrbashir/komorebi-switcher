@@ -1,13 +1,12 @@
-use std::cell::{OnceCell, RefCell};
+use std::cell::OnceCell;
 
 use dispatch::Queue;
 use objc2::rc::Retained;
-use objc2::runtime::{AnyObject, ProtocolObject};
-use objc2::{define_class, extern_protocol, msg_send, sel, DefinedClass, MainThreadOnly};
+use objc2::runtime::ProtocolObject;
+use objc2::{define_class, msg_send, DefinedClass, MainThreadOnly};
 use objc2_app_kit::{
 	NSApp, NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSFont,
-	NSStatusBar, NSStatusItem, NSTextAlignment, NSTextField, NSUserInterfaceLayoutOrientation,
-	NSVariableStatusItemLength, NSView,
+	NSStatusBar, NSStatusItem, NSTextAlignment, NSTextField, NSVariableStatusItemLength,
 };
 use objc2_foundation::{
 	ns_string, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect,
@@ -26,35 +25,10 @@ mod windows;
 mod workspace_button;
 mod workspaces_stack_view;
 
-// macOS 27 API, not yet exposed by objc2-app-kit. Only install this delegate
-// when the status item supports it.
-extern_protocol!(
-	/// Receives lifecycle callbacks for a status item's expanded interface.
-	///
-	/// # Safety
-	///
-	/// Implementations must use the Objective-C signatures declared by
-	/// `NSStatusItemExpandedInterfaceDelegate` and run on the main thread.
-	// Clippy does not recognize the safety docs forwarded by this macro.
-	#[allow(clippy::missing_safety_doc)]
-	unsafe trait NSStatusItemExpandedInterfaceDelegate:
-		NSObjectProtocol + MainThreadOnly
-	{
-		#[unsafe(method(statusItem:didBeginExpandedInterfaceSession:))]
-		#[unsafe(method_family = none)]
-		fn status_item_did_begin(&self, item: &NSStatusItem, session: &AnyObject);
-
-		#[unsafe(method(statusItemDidEndExpandedInterfaceSession:animated:))]
-		#[unsafe(method_family = none)]
-		fn status_item_did_end(&self, item: &NSStatusItem, animated: bool);
-	}
-);
-
 #[derive(Default)]
 pub struct AppDelegateIvars {
 	ns_status_item: OnceCell<Retained<NSStatusItem>>,
 	ns_stack_view: OnceCell<Retained<WorkspacesStackView>>,
-	buttons: RefCell<Vec<Retained<NSView>>>,
 	config: OnceCell<Config>,
 	/// Resolved custom font, computed once at startup from the config.
 	custom_font: OnceCell<Option<Retained<NSFont>>>,
@@ -68,21 +42,6 @@ define_class!(
 	pub struct AppDelegate;
 
 	unsafe impl NSObjectProtocol for AppDelegate {}
-
-	unsafe impl NSStatusItemExpandedInterfaceDelegate for AppDelegate {
-		#[unsafe(method(statusItem:didBeginExpandedInterfaceSession:))]
-		fn status_item_did_begin(&self, _item: &NSStatusItem, session: &AnyObject) {
-			// A workspace switch has no expanded interface. End system tracking
-			// immediately so macOS doesn't highlight the entire status item.
-			let _: () = unsafe { msg_send![session, cancel] };
-			if let Some(stack) = self.ivars().ns_stack_view.get() {
-				stack.click_button_under_cursor();
-			}
-		}
-
-		#[unsafe(method(statusItemDidEndExpandedInterfaceSession:animated:))]
-		fn status_item_did_end(&self, _item: &NSStatusItem, _animated: bool) {}
-	}
 
 	unsafe impl NSApplicationDelegate for AppDelegate {
 		#[unsafe(method(applicationDidFinishLaunching:))]
@@ -105,16 +64,9 @@ define_class!(
 
 			let ns_status_bar = NSStatusBar::systemStatusBar();
 			let ns_status_item = ns_status_bar.statusItemWithLength(NSVariableStatusItemLength);
-			if ns_status_item.respondsToSelector(sel!(setExpandedInterfaceDelegate:)) {
-				let delegate =
-					ProtocolObject::<dyn NSStatusItemExpandedInterfaceDelegate>::from_ref(self);
-				let _: () =
-					unsafe { msg_send![&ns_status_item, setExpandedInterfaceDelegate: delegate] };
-			}
 
 			let stack_view = {
 				let stack = WorkspacesStackView::new(mtm);
-				stack.setOrientation(NSUserInterfaceLayoutOrientation::Horizontal);
 				stack.setSpacing(2.0);
 				stack
 			};
@@ -182,14 +134,11 @@ impl AppDelegate {
 	fn update_workspace_buttons(&self, state: crate::komorebi::State) {
 		let mtm = self.mtm();
 		let stack_view = self.ivars().ns_stack_view.get().unwrap();
-		let mut views = self.ivars().buttons.borrow_mut();
 		let config = self.ivars().config.get().unwrap();
 
-		for button in views.iter() {
+		for button in stack_view.arrangedSubviews() {
 			button.removeFromSuperview();
 		}
-
-		views.clear();
 
 		let Some(monitor) = state.monitors.first() else {
 			return;
@@ -213,7 +162,6 @@ impl AppDelegate {
 				busy_indicator_color,
 			);
 			stack_view.addArrangedSubview(&workspace_button);
-			views.push(workspace_button.downcast().unwrap());
 		}
 
 		if config.show_layout_button {
@@ -221,11 +169,9 @@ impl AppDelegate {
 				let separator = NSTextField::labelWithString(ns_string!("|"), mtm);
 				separator.setAlignment(NSTextAlignment::Center);
 				stack_view.addArrangedSubview(&separator);
-				views.push(separator.downcast().unwrap());
 
 				let layout_button = LayoutButton::new(mtm, focused_ws, custom_font);
 				stack_view.addArrangedSubview(&layout_button);
-				views.push(layout_button.downcast().unwrap());
 			}
 		}
 
