@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.10.4] - 2026-10-31
+
 ### Fixed
 
 - Fixed whole-strip highlighting when clicking workspace buttons on macOS 27 yet again.
