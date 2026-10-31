@@ -38,6 +38,7 @@ or use the settings window accessible from the context menu.
 # Global settings
 show_layout_button    = false
 hide_empty_workspaces = false
+uniform_workspace_button_widths = false
 
 [colors]
 active_indicator = "#4CC2FFCC"
@@ -53,6 +54,7 @@ busy_indicator = "rgba(180, 173, 170, 0.6)"
 [monitors.0]
 show_layout_button    = false    # Can be removed to use the global setting
 hide_empty_workspaces = false    # Can be removed to use the global setting
+uniform_workspace_button_widths = true # Can be removed to use the global setting
 auto_width            = true
 auto_height           = true
 x                     = 0
