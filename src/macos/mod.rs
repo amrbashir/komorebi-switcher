@@ -138,38 +138,37 @@ impl AppDelegate {
 			button.removeFromSuperview();
 		}
 
-		let Some(monitor) = state.monitors.first() else {
-			return;
-		};
+		if let Some(monitor) = state.focused_monitor() {
+			// Use the cached resolved custom font
+			let custom_font = self.ivars().custom_font.get().and_then(|f| f.as_deref());
+			let active_indicator_color = config.colors.active_indicator.as_deref();
+			let busy_indicator_color = config.colors.busy_indicator.as_deref();
 
-		// Use the cached resolved custom font
-		let custom_font = self.ivars().custom_font.get().and_then(|f| f.as_deref());
-		let active_indicator_color = config.colors.active_indicator.as_deref();
-		let busy_indicator_color = config.colors.busy_indicator.as_deref();
+			for workspace in &monitor.workspaces {
+				if config.hide_empty_workspaces && workspace.is_empty && !workspace.focused {
+					continue;
+				}
 
-		for workspace in &monitor.workspaces {
-			if config.hide_empty_workspaces && workspace.is_empty && !workspace.focused {
-				continue;
+				let workspace_button = WorkspaceButton::new(
+					mtm,
+					monitor.index,
+					workspace,
+					custom_font,
+					active_indicator_color,
+					busy_indicator_color,
+				);
+				stack_view.addArrangedSubview(&workspace_button);
 			}
 
-			let workspace_button = WorkspaceButton::new(
-				mtm,
-				workspace,
-				custom_font,
-				active_indicator_color,
-				busy_indicator_color,
-			);
-			stack_view.addArrangedSubview(&workspace_button);
-		}
+			if config.show_layout_button {
+				if let Some(focused_ws) = monitor.focused_workspace() {
+					let separator = NSTextField::labelWithString(ns_string!("|"), mtm);
+					separator.setAlignment(NSTextAlignment::Center);
+					stack_view.addArrangedSubview(&separator);
 
-		if config.show_layout_button {
-			if let Some(focused_ws) = monitor.focused_workspace() {
-				let separator = NSTextField::labelWithString(ns_string!("|"), mtm);
-				separator.setAlignment(NSTextAlignment::Center);
-				stack_view.addArrangedSubview(&separator);
-
-				let layout_button = LayoutButton::new(mtm, focused_ws, custom_font);
-				stack_view.addArrangedSubview(&layout_button);
+					let layout_button = LayoutButton::new(mtm, focused_ws, custom_font);
+					stack_view.addArrangedSubview(&layout_button);
+				}
 			}
 		}
 
@@ -181,6 +180,8 @@ impl AppDelegate {
 			stack_view.setFrame(frame);
 			btn.setFrame(frame);
 		}
+
+		stack_view.synchronize_input_panel();
 	}
 }
 

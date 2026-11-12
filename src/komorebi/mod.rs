@@ -109,11 +109,20 @@ impl Monitor {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct State {
 	pub monitors: Vec<Monitor>,
+	pub focused_monitor_index: usize,
+}
+
+impl State {
+	#[allow(dead_code)] // Used by the macOS switcher.
+	pub fn focused_monitor(&self) -> Option<&Monitor> {
+		self.monitors.get(self.focused_monitor_index)
+	}
 }
 
 impl From<KState> for State {
 	fn from(state: KState) -> Self {
 		Self {
+			focused_monitor_index: state.monitors.focused_idx(),
 			monitors: state
 				.monitors
 				.elements

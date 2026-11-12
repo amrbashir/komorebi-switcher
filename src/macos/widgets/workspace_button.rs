@@ -6,6 +6,8 @@ use objc2_foundation::{MainThreadMarker, NSObjectProtocol, NSPoint, NSRect, NSSi
 #[derive(Debug)]
 pub struct WorkspaceButtonIvars {
 	focused: bool,
+	monitor_index: usize,
+	workspace_index: usize,
 }
 
 define_class!(
@@ -22,7 +24,8 @@ define_class!(
 	impl WorkspaceButton {
 		#[unsafe(method(buttonClicked:))]
 		fn button_clicked(&self, _sender: &NSButton) {
-			crate::komorebi::change_workspace(0, self.tag() as usize);
+			let ivars = self.ivars();
+			crate::komorebi::change_workspace(ivars.monitor_index, ivars.workspace_index);
 		}
 
 		#[unsafe(method(mouseEntered:))]
@@ -51,6 +54,7 @@ impl WorkspaceButton {
 
 	pub fn new(
 		mtm: MainThreadMarker,
+		monitor_index: usize,
 		workspace: &crate::komorebi::Workspace,
 		font: Option<&NSFont>,
 		active_indicator_color: Option<&str>,
@@ -59,13 +63,14 @@ impl WorkspaceButton {
 		// Create button
 		let this = Self::alloc(mtm).set_ivars(WorkspaceButtonIvars {
 			focused: workspace.focused,
+			monitor_index,
+			workspace_index: workspace.index,
 		});
 		// SAFETY: The signature of `NSButton`'s `init` method is correct.
 		let this: Retained<Self> = unsafe { msg_send![super(this), init] };
 
 		// Configure button
 		this.setTitle(&NSString::from_str(&workspace.name));
-		this.setTag(workspace.index as isize);
 		if let Some(font) = font {
 			this.setFont(Some(font));
 		}

@@ -209,10 +209,15 @@ impl SwitcherStackView {
 		}
 	}
 
-	fn synchronize_input_panel(&self) {
+	pub fn synchronize_input_panel(&self) {
 		let Some(panel) = self.ivars().input_panel.get() else {
 			return;
 		};
+
+		if self.arrangedSubviews().is_empty() {
+			panel.orderOut(None);
+			return;
+		}
 
 		let Some(btn) = (unsafe { self.superview() }) else {
 			panel.orderOut(None);

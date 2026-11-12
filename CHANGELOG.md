@@ -2,7 +2,11 @@
 
 ## [Unreleased]
 
-## Changed
+### Added
+
+- Added multi-monitor support on macOS: the switcher automatically updates its workspace buttons based on Komorebi's focused monitor.
+
+### Changed
 
 - Use WinUI for the switcher UI and settings window. Less memory usage (<=5mb idle).
 
