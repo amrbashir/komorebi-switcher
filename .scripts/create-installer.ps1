@@ -11,7 +11,7 @@ Copy-Item -Force "./dist/komorebi-switcher.exe" "./installer/komorebi-switcher.e
 Copy-Item -Force "./assets/icon.ico" "./installer/icon.ico"
 
 # Create the installer
-makensis /V4 "./installer/installer.nsi"
+ISCC.exe "./installer/installer.iss"
 
 # Move the installer to the dist directory
 Move-Item -Force "./installer/komorebi-switcher-setup.exe" "./dist/komorebi-switcher-setup.exe"

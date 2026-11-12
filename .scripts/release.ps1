@@ -15,8 +15,8 @@ $inPackage = $false
 
 cargo update -p komorebi-switcher # update the lock file
 
-$path = "installer/installer.nsi"
-(Get-Content $path) -replace "VERSION `"[0-9]+.[0-9]+.[0-9]+`"", "VERSION `"$version`"" | Set-Content $path
+$path = "installer/installer.iss"
+(Get-Content $path) -replace '^AppVersion=[0-9]+\.[0-9]+\.[0-9]+', "AppVersion=$version" | Set-Content $path
 
 $path = "installer/Info.plist"
 (Get-Content $path) -replace "<string>[0-9]+.[0-9]+.[0-9]+</string>", "<string>$version</string>" | Set-Content $path

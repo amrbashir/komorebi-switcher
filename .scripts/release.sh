@@ -9,8 +9,8 @@ sed -i -E "/^\[package\]$/,/^\[/s/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/version 
 
 cargo update -p komorebi-switcher # update the lock file
 
-path="installer/installer.nsi"
-sed -i -E "s/VERSION \"[0-9]+\.[0-9]+\.[0-9]+\"/VERSION \"$version\"/" "$path"
+path="installer/installer.iss"
+sed -i -E "s/^AppVersion=[0-9]+\.[0-9]+\.[0-9]+/AppVersion=$version/" "$path"
 
 path="installer/Info.plist"
 sed -i -E "s/<string>[0-9]+\.[0-9]+\.[0-9]+<\/string>/<string>$version<\/string>/" "$path"
