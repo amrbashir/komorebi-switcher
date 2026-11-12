@@ -1,58 +1,12 @@
-use std::collections::HashMap;
-
 use anyhow::Context;
 use windows_registry::CURRENT_USER;
 
-use crate::config::{Config, MonitorConfig};
+use crate::config::MonitorConfig;
 
 #[cfg(debug_assertions)]
 const APP_REG_KEY: &str = "SOFTWARE\\amrbashir\\komorebi-switcher-debug";
 #[cfg(not(debug_assertions))]
 const APP_REG_KEY: &str = "SOFTWARE\\amrbashir\\komorebi-switcher";
-
-impl Config {
-	pub fn migrate_from_registry() -> anyhow::Result<HashMap<String, MonitorConfig>> {
-		use windows_registry::CURRENT_USER;
-
-		let key = CURRENT_USER.create(APP_REG_KEY)?;
-		let subkeys: Vec<String> = key.keys()?.collect();
-
-		let mut monitors = HashMap::new();
-		for monitor_id in subkeys {
-			let subkey = key.open(&monitor_id)?;
-
-			#[inline]
-			fn get_int(k: &windows_registry::Key, key: &str, default: i32) -> i32 {
-				k.get_string(key)
-					.map_err(|e| anyhow::anyhow!(e))
-					.and_then(|v| v.parse::<i32>().map_err(Into::into))
-					.unwrap_or(default)
-			}
-
-			let x = get_int(&subkey, "window-pos-x", 0);
-			let y = get_int(&subkey, "window-pos-y", 0);
-			let width = get_int(&subkey, "window-size-width", 200);
-			let height = get_int(&subkey, "window-size-height", 40);
-			let auto_width = subkey.get_u32("window-size-auto-width").unwrap_or(1) != 0;
-			let auto_height = subkey.get_u32("window-size-auto-height").unwrap_or(1) != 0;
-
-			monitors.insert(
-				monitor_id,
-				MonitorConfig {
-					x,
-					y,
-					width,
-					height,
-					auto_width,
-					auto_height,
-					..Default::default()
-				},
-			);
-		}
-
-		Ok(monitors)
-	}
-}
 
 impl MonitorConfig {
 	pub fn adjust_for_auto_size(&mut self, monitor_id: &str) -> anyhow::Result<()> {

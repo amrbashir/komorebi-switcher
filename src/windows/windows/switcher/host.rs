@@ -2,10 +2,8 @@ use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
-use winit::event_loop::EventLoopProxy;
 
 use crate::config::MonitorConfig;
-use crate::windows::app::AppMessage;
 use crate::windows::utils;
 
 #[cfg(debug_assertions)]
@@ -13,11 +11,10 @@ const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher-debug::host");
 #[cfg(not(debug_assertions))]
 const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher::host");
 
-pub unsafe fn create_host(
+pub unsafe fn create(
 	taskbar_hwnd: HWND,
-	proxy: EventLoopProxy<AppMessage>,
 	monitor_config: &MonitorConfig,
-) -> anyhow::Result<HWND> {
+) -> anyhow::Result<utils::OwnedHWND> {
 	let hinstance = unsafe { GetModuleHandleW(None) }?;
 
 	let mut rect = RECT::default();
@@ -33,15 +30,13 @@ pub unsafe fn create_host(
 
 	let _ = unsafe { RegisterClassW(&wc) };
 
-	let userdata = WndProcUserData { proxy };
-
 	let height = if monitor_config.auto_height {
 		rect.bottom - rect.top
 	} else {
 		monitor_config.height
 	};
 
-	let hwnd = CreateWindowExW(
+	let hwnd = utils::OwnedHWND(CreateWindowExW(
 		WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP,
 		HOST_CLASSNAME,
 		PCWSTR::null(),
@@ -53,11 +48,11 @@ pub unsafe fn create_host(
 		Some(taskbar_hwnd),
 		None,
 		None,
-		Some(Box::into_raw(Box::new(userdata)) as _),
-	)?;
+		None,
+	)?);
 
 	SetWindowPos(
-		hwnd,
+		hwnd.0,
 		Some(HWND_TOP),
 		0,
 		0,
@@ -69,16 +64,6 @@ pub unsafe fn create_host(
 	Ok(hwnd)
 }
 
-struct WndProcUserData {
-	proxy: EventLoopProxy<AppMessage>,
-}
-
-impl WndProcUserData {
-	unsafe fn from_hwnd(hwnd: HWND) -> &'static mut Self {
-		&mut *(GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut Self)
-	}
-}
-
 unsafe extern "system" fn wndproc_host(
 	hwnd: HWND,
 	msg: u32,
@@ -86,29 +71,19 @@ unsafe extern "system" fn wndproc_host(
 	lparam: LPARAM,
 ) -> LRESULT {
 	match msg {
-		// Initialize GWLP_USERDATA
-		WM_CREATE => {
-			let create_struct = &*(lparam.0 as *const CREATESTRUCTW);
-			let userdata = create_struct.lpCreateParams as *const WndProcUserData;
-			SetWindowLongPtrW(hwnd, GWLP_USERDATA, userdata as _);
-		}
-
-		// Notify app to update DPI
-		WM_DPICHANGED_AFTERPARENT => {
-			let userdata = WndProcUserData::from_hwnd(hwnd);
-			if let Err(e) = userdata.proxy.send_event(AppMessage::DpiChanged) {
-				tracing::error!("Failed to send `AppMessage::DpiChanged`: {e}")
-			}
-		}
-
+		WM_MOUSEACTIVATE => return LRESULT(MA_NOACTIVATE as _),
+		WM_POINTERACTIVATE => return LRESULT(PA_NOACTIVATE as _),
+		// WinUI owns context menus; do not forward requests to Explorer.
+		WM_CONTEXTMENU => return LRESULT(0),
 		// Resize children when this host is resized
 		WM_SIZE => {
 			let mut rect = RECT::default();
+
 			if GetClientRect(hwnd, &mut rect).is_ok() {
 				let width = rect.right - rect.left;
 				let height = rect.bottom - rect.top;
 
-				for child in utils::enum_child_windows(hwnd) {
+				for child in utils::direct_child_windows(hwnd) {
 					if let Err(e) = SetWindowPos(
 						child,
 						None,
@@ -116,32 +91,12 @@ unsafe extern "system" fn wndproc_host(
 						0,
 						width,
 						height,
-						SWP_NOMOVE | SWP_FRAMECHANGED,
+						SWP_NOMOVE | SWP_FRAMECHANGED | SWP_NOACTIVATE,
 					) {
 						tracing::error!("Failed to resize child to match host: {e}")
 					}
 				}
 			}
-		}
-
-		// Notify app to update system settings like accent colors
-		WM_SETTINGCHANGE => {
-			let userdata = WndProcUserData::from_hwnd(hwnd);
-			if let Err(e) = userdata.proxy.send_event(AppMessage::SystemSettingsChanged) {
-				tracing::error!("Failed to send `AppMessage::SystemSettingsChanged`: {e}")
-			}
-		}
-
-		// Close children when this host is closed
-		WM_CLOSE => {
-			for child in utils::enum_child_windows(hwnd) {
-				let _ = SendMessageW(child, WM_CLOSE, None, None);
-			}
-
-			// Drop userdata
-			let userdata = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
-			let userdata = userdata as *mut WndProcUserData;
-			drop(Box::from_raw(userdata));
 		}
 
 		_ => {}

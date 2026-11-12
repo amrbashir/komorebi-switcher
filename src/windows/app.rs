@@ -1,232 +1,153 @@
-use std::sync::{Arc, RwLock};
+use std::collections::HashMap;
 
-use winit::application::ApplicationHandler;
-use winit::event::{StartCause, WindowEvent};
-use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
-use winit::window::WindowId;
+use windows_reactor::{
+	Application, ApplicationContext, ApplicationView, ApplicationViewContext, NotifyIcon,
+};
 
+use super::menu::MenuCommand;
+use super::message_window;
+use super::taskbar::Taskbar;
+use super::utils::OwnedHWND;
+use super::windows::settings::{SettingsInput, SettingsWindow};
+use super::windows::switcher::{SwitcherInput, SwitcherWindow};
 use crate::config::Config;
-use crate::windows::context_menu::AppContextMenu;
-use crate::windows::egui_glue::EguiWindow;
-use crate::windows::utils::{HwndWithDrop, MultiMap};
+use crate::komorebi::{self, State};
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {
-	UpdateKomorebiState(crate::komorebi::State),
-	MenuEvent(muda::MenuEvent),
-	SystemSettingsChanged,
-	DpiChanged,
-	CreateSettingsWindow,
-	PreviewConfig(Config),
-	ClearPreviewConfig,
-	CloseWindow(WindowId),
-	RecreateSwitcherWindows,
+	UpdateKomorebiState(State),
+	PreviewConfig(Option<Config>),
+	SavedConfig(Config),
 	TaskbarRecreated,
+	MenuCommand(MenuCommand),
 }
 
 pub struct App {
-	pub wgpu_instance: wgpu::Instance,
-	pub proxy: EventLoopProxy<AppMessage>,
-	pub windows: MultiMap<WindowId, Option<String>, EguiWindow>,
-	#[allow(unused)]
-	pub tray_icon: Option<crate::windows::tray_icon::TrayIcon>,
-	pub komorebi_state: crate::komorebi::State,
-	#[allow(unused)]
-	pub message_window: HwndWithDrop,
-	pub config: Arc<RwLock<crate::config::Config>>,
-	pub context_menu: AppContextMenu,
+	config: Config,
+	preview: Option<Config>,
+	komorebi_state: komorebi::State,
+	taskbars: HashMap<String, Taskbar>,
+	_message_window: OwnedHWND,
 }
 
 impl App {
-	pub fn new(proxy: EventLoopProxy<AppMessage>) -> anyhow::Result<Self> {
-		let wgpu_instance = egui_wgpu::wgpu::Instance::new(wgpu::InstanceDescriptor {
-			backends: wgpu::Backends::DX12,
-			..wgpu::InstanceDescriptor::new_without_display_handle()
-		});
-
-		let komorebi_state = crate::komorebi::read_state().unwrap_or_default();
-
-		let message_window = unsafe { crate::windows::message_window::create(proxy.clone())? };
-		let message_window = HwndWithDrop(message_window);
-
-		let config = crate::config::Config::load()?;
-		let config = Arc::new(RwLock::new(config));
-
-		let context_menu = AppContextMenu::new(proxy.clone())?;
-
-		let tray_icon = crate::windows::tray_icon::TrayIcon::new(context_menu.clone()).ok();
-
-		// Start listening for komorebi state changes
-		{
-			let proxy = proxy.clone();
-			std::thread::spawn(move || {
-				crate::komorebi::listen_for_state(move |new_state| {
-					if let Err(e) = proxy.send_event(AppMessage::UpdateKomorebiState(new_state)) {
-						tracing::error!("Failed to send komorebi state update: {e}");
-					}
-				})
-			});
-		}
-
-		Ok(Self {
-			wgpu_instance,
-			windows: Default::default(),
-			proxy,
-			tray_icon,
-			komorebi_state,
-			message_window,
-			config,
-			context_menu,
-		})
+	fn switcher_key(monitor_id: &str) -> String {
+		format!("switcher:{monitor_id}")
 	}
 
-	fn create_switchers(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
-		let taskbars = crate::windows::taskbar::all();
+	fn sync_switchers(&mut self, context: &ApplicationContext<Self>, force_recreate: bool) {
+		let taskbars = super::taskbar::all();
+		let mut next = HashMap::new();
 
-		tracing::debug!("Found {} taskbars: {taskbars:?}", taskbars.len());
-
-		for monitor in self.komorebi_state.monitors.clone().into_iter() {
-			// skip already existing window for this monitor
-			let monitor_id = monitor.id.clone();
-			if self.windows.contains_key_alt(&Some(monitor_id.clone())) {
-				continue;
-			}
-
-			let Some(taskbar) = taskbars.iter().find(|tb| monitor.rect.contains(tb.rect)) else {
-				tracing::warn!(
-					"Failed to find taskbar for monitor: {}-{} {:?}",
-					monitor.name,
-					monitor.id,
-					monitor.rect
-				);
-				continue;
-			};
-
-			tracing::info!(
-				"Creating switcher window for monitor: {}-{} {:?} on taskbar: {:?}",
-				monitor.name,
-				monitor.id,
-				monitor.rect,
-				taskbar.hwnd
-			);
-
-			let window = self.create_switcher_window(
-				event_loop,
-				*taskbar,
-				monitor,
-				self.context_menu.clone(),
-			)?;
-
-			self.windows.insert(window.id(), Some(monitor_id), window);
-		}
-
-		Ok(())
-	}
-
-	fn handle_app_message(
-		&mut self,
-		event_loop: &ActiveEventLoop,
-		message: &AppMessage,
-	) -> anyhow::Result<()> {
-		match message {
-			AppMessage::CreateSettingsWindow => self.create_settings_window(event_loop)?,
-
-			AppMessage::CloseWindow(window_id) => {
-				self.windows.remove(window_id);
-			}
-
-			AppMessage::UpdateKomorebiState(state) => {
-				// Update the komorebi state
-				self.komorebi_state = state.clone();
-
-				// Create switcher windows for new monitors if needed
-				self.create_switchers(event_loop)?;
-
-				// Remove the windows for monitors that no longer exist
-				self.windows.retain(|_, key, _| {
-					let Some(key) = key else {
-						return true;
-					};
-
-					let monitor = state.monitors.iter().any(|m| &m.id == key);
-					if !monitor {
-						tracing::info!("Removing switcher window for {key}");
+		for monitor in &self.komorebi_state.monitors {
+			if let Some(taskbar) = taskbars.iter().find(|tb| monitor.rect.contains(tb.rect)) {
+				match self.taskbars.get(&monitor.id) {
+					Some(previous) if force_recreate || previous.hwnd != taskbar.hwnd => {
+						context.recreate_window(Self::switcher_key(&monitor.id));
 					}
+					None => context.show_window(Self::switcher_key(&monitor.id)),
+					_ => {}
+				}
 
-					monitor
-				});
+				next.insert(monitor.id.clone(), *taskbar);
 			}
-
-			AppMessage::RecreateSwitcherWindows | AppMessage::TaskbarRecreated => {
-				tracing::info!("Received {message:?}, closing and recreating all switchers");
-
-				// Close all existing switcher windows
-				self.windows.clear();
-
-				// Recreate switchers with new taskbar windows
-				self.create_switchers(event_loop)?;
-			}
-
-			_ => {}
 		}
 
-		Ok(())
+		self.taskbars = next;
 	}
 }
 
-impl ApplicationHandler<AppMessage> for App {
-	fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
-		if cause == StartCause::Init {
-			// On Init, create switcher windows for all monitors
-			if let Err(e) = self.create_switchers(event_loop) {
-				tracing::error!("Error while creating switchers: {e}");
-			};
-		}
-	}
+impl Application for App {
+	type Input = (Config, State);
+	type Message = AppMessage;
 
-	fn resumed(&mut self, _event_loop: &ActiveEventLoop) {}
+	fn create((config, state): &Self::Input, context: &ApplicationContext<Self>) -> Self {
+		let sender = context.thread_sender();
+		let hwnd = unsafe { message_window::create(sender.clone()) }
+			.expect("Failed to create message window");
 
-	fn user_event(&mut self, event_loop: &ActiveEventLoop, event: AppMessage) {
-		if let Err(e) = self.handle_app_message(event_loop, &event) {
-			tracing::error!("Error while handling AppMessage: {e}")
-		}
-
-		if let Err(e) = self.context_menu.handle_app_message(event_loop, &event) {
-			tracing::error!("Error while handling AppMessage for context menu: {e}")
+		{
+			let sender = sender.clone();
+			std::thread::spawn(move || {
+				crate::komorebi::listen_for_state(move |state| {
+					let _ = sender.send(AppMessage::UpdateKomorebiState(state));
+				});
+			});
 		}
 
-		for window in self.windows.values_mut() {
-			let ctx = window.surface.egui_renderer.egui_ctx();
-			if let Err(e) = window.view.handle_app_message(ctx, event_loop, &event) {
-				tracing::error!("Error while handling AppMessage for window: {e}")
-			}
-
-			window.request_redraw();
-		}
-	}
-
-	fn window_event(
-		&mut self,
-		event_loop: &ActiveEventLoop,
-		window_id: WindowId,
-		event: WindowEvent,
-	) {
-		if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
-			tracing::info!("Closing window {window_id:?}");
-			self.windows.remove(&window_id);
-
-			if self.windows.is_empty() {
-				tracing::info!("Exiting event loop");
-				event_loop.exit();
-			}
-		}
-
-		let Some(window) = self.windows.get_mut(&window_id) else {
-			return;
+		let mut app = Self {
+			config: config.clone(),
+			preview: None,
+			komorebi_state: state.clone(),
+			taskbars: HashMap::new(),
+			_message_window: hwnd,
 		};
 
-		if let Err(e) = window.handle_window_event(event_loop, event) {
-			tracing::error!("Error while handing `WindowEevent`: {e}")
+		app.sync_switchers(context, false);
+
+		app
+	}
+
+	fn update(&mut self, message: AppMessage, context: &ApplicationContext<Self>) {
+		match message {
+			AppMessage::UpdateKomorebiState(state) => {
+				self.komorebi_state = state;
+				self.sync_switchers(context, false);
+			}
+
+			AppMessage::MenuCommand(command) => match command {
+				MenuCommand::Settings => context.show_window("settings"),
+				MenuCommand::Refresh => self.sync_switchers(context, false),
+				MenuCommand::Quit => context.exit(),
+			},
+
+			AppMessage::PreviewConfig(config) => self.preview = config,
+			AppMessage::SavedConfig(config) => {
+				self.config = config;
+				self.preview = None;
+			}
+
+			AppMessage::TaskbarRecreated => {
+				self.sync_switchers(context, true);
+			}
 		}
+	}
+
+	fn view(&self, _: &Self::Input, context: &ApplicationViewContext<Self>) -> ApplicationView {
+		let menu = super::menu::create(context);
+
+		let mut view = ApplicationView::new()
+			.notify_icon(
+				"tray",
+				NotifyIcon::from_resource(1)
+					.tooltip(crate::APP_NAME)
+					.menu(menu.clone()),
+			)
+			.window::<SettingsWindow>(
+				"settings",
+				SettingsInput {
+					config: self.config.clone(),
+					monitors: self.komorebi_state.monitors.clone(),
+					preview: context.callback(|config| AppMessage::PreviewConfig(Some(config))),
+					saved: context.callback(AppMessage::SavedConfig),
+					closed: context.message(AppMessage::PreviewConfig(None)),
+				},
+			);
+
+		for monitor in &self.komorebi_state.monitors {
+			if let Some(taskbar) = self.taskbars.get(&monitor.id) {
+				view = view.window::<SwitcherWindow>(
+					Self::switcher_key(&monitor.id),
+					SwitcherInput {
+						monitor: monitor.clone(),
+						taskbar: *taskbar,
+						config: self.preview.as_ref().unwrap_or(&self.config).clone(),
+						context_menu: menu.clone(),
+					},
+				);
+			}
+		}
+
+		view
 	}
 }

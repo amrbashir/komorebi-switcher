@@ -3,7 +3,7 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 
 use crate::windows::utils;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Taskbar {
 	pub hwnd: HWND,
 	pub rect: RECT,
@@ -18,10 +18,8 @@ fn is_taskbar(hwnd: HWND) -> bool {
 }
 
 pub fn all() -> Vec<Taskbar> {
-	utils::TopLevelWindowsIterator::new()
-		.iter()
+	utils::top_level_windows()
 		.filter_map(|hwnd| {
-			let hwnd = hwnd.ok()?;
 			if is_taskbar(hwnd) {
 				let mut rect = Default::default();
 				unsafe { GetWindowRect(hwnd, &mut rect) }.ok()?;

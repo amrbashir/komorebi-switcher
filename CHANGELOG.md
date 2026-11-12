@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## Changed
+
+- Use WinUI for the switcher UI and settings window. Less memory usage (<=5mb idle).
+
 ## [0.10.4] - 2026-10-31
 
 ### Fixed

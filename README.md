@@ -38,6 +38,8 @@ or use the settings window accessible from the context menu.
 # Global settings
 show_layout_button    = false
 hide_empty_workspaces = false
+font_family           = "Consolas" # Optional; omit to use the system default font
+font_weight           = 400        # Optional; 400 is normal, 700 is bold
 
 [colors]
 active_indicator = "#4CC2FFCC"
@@ -53,6 +55,8 @@ busy_indicator = "rgba(180, 173, 170, 0.6)"
 [monitors.0]
 show_layout_button    = false    # Can be removed to use the global setting
 hide_empty_workspaces = false    # Can be removed to use the global setting
+font_family           = "Segoe UI" # Can be removed to use the global setting
+font_weight           = 600        # Can be removed to use the global setting
 auto_width            = true
 auto_height           = true
 x                     = 0

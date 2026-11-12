@@ -11,6 +11,12 @@ mod utils;
 #[cfg(target_os = "windows")]
 mod windows;
 
+pub const APP_NAME: &str = if cfg!(debug_assertions) {
+	concat!(env!("CARGO_PKG_NAME"), " (debug)")
+} else {
+	env!("CARGO_PKG_NAME")
+};
+
 fn run() -> anyhow::Result<()> {
 	#[cfg(target_os = "windows")]
 	windows::run()?;

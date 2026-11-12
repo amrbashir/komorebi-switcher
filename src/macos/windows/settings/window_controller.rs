@@ -44,7 +44,10 @@ impl SettingsWindowController {
 			)
 		};
 
-		window.setTitle(&NSString::from_str("Settings"));
+		window.setTitle(&NSString::from_str(&format!(
+			"Settings - {}",
+			crate::APP_NAME
+		)));
 
 		let view_controller = SettingsViewController::new(mtm, config);
 		window.setContentViewController(Some(&view_controller));

@@ -7,7 +7,7 @@ pub use crate::komorebi::client::KCycleDirection as CycleDirection;
 
 mod client;
 
-#[derive(Debug, Clone, Default, Copy)]
+#[derive(Debug, Clone, Default, Copy, PartialEq)]
 #[allow(unused)]
 pub struct Rect {
 	pub left: i32,
@@ -40,7 +40,7 @@ impl Rect {
 	}
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Workspace {
 	pub name: String,
 	pub index: usize,
@@ -49,7 +49,7 @@ pub struct Workspace {
 	pub layout: String,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[allow(unused)]
 pub struct Monitor {
 	pub name: String,
@@ -106,7 +106,7 @@ impl Monitor {
 	}
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct State {
 	pub monitors: Vec<Monitor>,
 }

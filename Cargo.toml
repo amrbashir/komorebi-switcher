@@ -4,6 +4,7 @@ version = "0.10.4"
 description = "A minimal workspace switcher for the Komorebi tiling window manager, seamlessly integrated into Windows 10/11 taskbar or macOS menu bar."
 authors = ["Amr Bashir <amr.bashir2015@gmail.com>"]
 edition = "2021"
+rust-version = "1.95"
 license = "MIT"
 
 [package.metadata.winresource]
@@ -32,28 +33,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
 # The app uses native dialogs on Windows and macOS, not Linux portal backends.
 rfd = { version = "0.15.4", default-features = false }
-font-kit = "0.14.3"
 color = "0.3.2"
 
 [target."cfg(windows)".dependencies]
-winit = { version = "0.30", default-features = false, features = ["rwh_06"] }
-raw-window-handle = "0.6"
-wgpu = { version = "29", default-features = false, features = [
-  "std",
-  "dx12",
-  "wgsl",
-] }
-pollster = "0.4"
-egui = "0.34.3"
-egui-winit = { version = "0.34.3", default-features = false, features = [
-  "clipboard",
-  "links",
-] }
-egui-wgpu = { version = "0.34.3", default-features = false }
-egui_animation = "0.11"
+windows-reactor = { git = "https://github.com/amrbashir/windows-rs", branch = "amr/feat/embedding" }
 windows-registry = "0.5"
-muda = "0.17"
-tray-icon = "0.21"
 uds_windows = "1.1"
 
 [target."cfg(windows)".dependencies.windows]
@@ -65,15 +49,11 @@ features = [
   "Win32_Graphics_Gdi",
   "Win32_UI_Input_KeyboardAndMouse",
   "UI_ViewManagement",
-  "Win32_Graphics_Direct3D",
-  "Win32_Graphics_Direct3D11",
-  "Win32_Graphics_Direct2D_Common",
-  "Win32_Graphics_DirectComposition",
-  "Win32_Graphics_Dxgi_Common",
   "Win32_UI_HiDpi",
 ]
 
 [target.'cfg(target_os = "macos")'.dependencies]
+font-kit = "0.14.3"
 block2 = "0.6.2"
 dispatch = "0.2.0"
 objc2 = "0.6.3"

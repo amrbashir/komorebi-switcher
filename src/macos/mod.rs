@@ -13,22 +13,18 @@ use objc2_foundation::{
 	NSSize, NSString,
 };
 
-use self::workspace_button::WorkspaceButton;
-use self::workspaces_stack_view::WorkspacesStackView;
+use self::widgets::{LayoutButton, SwitcherStackView, WorkspaceButton};
 use crate::config::Config;
-use crate::macos::layout_button::LayoutButton;
 use crate::macos::windows::settings::SettingsWindowController;
 
-mod layout_button;
 mod utils;
+mod widgets;
 mod windows;
-mod workspace_button;
-mod workspaces_stack_view;
 
 #[derive(Default)]
 pub struct AppDelegateIvars {
 	ns_status_item: OnceCell<Retained<NSStatusItem>>,
-	ns_stack_view: OnceCell<Retained<WorkspacesStackView>>,
+	ns_stack_view: OnceCell<Retained<SwitcherStackView>>,
 	config: OnceCell<Config>,
 	/// Resolved custom font, computed once at startup from the config.
 	custom_font: OnceCell<Option<Retained<NSFont>>>,
@@ -45,14 +41,10 @@ define_class!(
 
 	unsafe impl NSApplicationDelegate for AppDelegate {
 		#[unsafe(method(applicationDidFinishLaunching:))]
-		fn did_finish_launching(&self, notification: &NSNotification) {
+		fn did_finish_launching(&self, _notification: &NSNotification) {
 			let mtm = self.mtm();
 
-			let app = notification
-				.object()
-				.unwrap()
-				.downcast::<NSApplication>()
-				.unwrap();
+			let app = NSApp(mtm);
 
 			app.setActivationPolicy(NSApplicationActivationPolicy::Accessory);
 
@@ -66,7 +58,7 @@ define_class!(
 			let ns_status_item = ns_status_bar.statusItemWithLength(NSVariableStatusItemLength);
 
 			let stack_view = {
-				let stack = WorkspacesStackView::new(mtm);
+				let stack = SwitcherStackView::new(mtm);
 				stack.setSpacing(2.0);
 				stack
 			};
@@ -108,9 +100,15 @@ impl AppDelegate {
 	}
 
 	fn dispatch_new_state(state: crate::komorebi::State) {
-		let mtm = MainThreadMarker::new().unwrap();
+		let Some(mtm) = MainThreadMarker::new() else {
+			tracing::error!("Cannot update macOS UI outside the main thread");
+			return;
+		};
 		let app = NSApp(mtm);
-		let delegate = app.delegate().unwrap();
+		let Some(delegate) = app.delegate() else {
+			return;
+		};
+
 		if let Ok(delegate) = delegate.downcast::<Self>() {
 			delegate.update_workspace_buttons(state);
 		}
@@ -187,8 +185,7 @@ impl AppDelegate {
 }
 
 pub fn run() -> anyhow::Result<()> {
-	let mtm = MainThreadMarker::new().unwrap();
-
+	let mtm = MainThreadMarker::new().expect("macOS UI must run on the main thread");
 	let app = NSApplication::sharedApplication(mtm);
 	let delegate = AppDelegate::new(mtm);
 	app.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));

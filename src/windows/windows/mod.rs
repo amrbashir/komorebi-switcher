@@ -1,2 +1,2 @@
-mod settings;
-mod switcher;
+pub(crate) mod settings;
+pub(crate) mod switcher;

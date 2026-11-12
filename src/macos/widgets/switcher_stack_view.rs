@@ -15,16 +15,16 @@ use objc2_foundation::{
 	MainThreadMarker, NSNotification, NSNotificationCenter, NSObjectProtocol, NSRect, NSString,
 };
 
-use super::AppDelegate;
+use crate::macos::AppDelegate;
 
 #[derive(Default)]
-pub struct WorkspacesStackViewIvars {
+pub struct SwitcherStackViewIvars {
 	context_menu: OnceCell<Retained<NSMenu>>,
 	input_panel: OnceCell<Retained<StatusBarInputPanel>>,
 	modifier_monitors: OnceCell<Vec<Retained<AnyObject>>>,
 }
 
-impl Drop for WorkspacesStackViewIvars {
+impl Drop for SwitcherStackViewIvars {
 	fn drop(&mut self) {
 		if let Some(monitors) = self.modifier_monitors.get() {
 			for monitor in monitors {
@@ -47,10 +47,10 @@ impl Drop for WorkspacesStackViewIvars {
 define_class!(
 	#[unsafe(super = NSStackView)]
 	#[thread_kind = MainThreadOnly]
-	#[ivars = WorkspacesStackViewIvars]
-	pub struct WorkspacesStackView;
+	#[ivars = SwitcherStackViewIvars]
+	pub struct SwitcherStackView;
 
-	impl WorkspacesStackView {
+	impl SwitcherStackView {
 		#[unsafe(method(viewDidMoveToWindow))]
 		fn view_did_move_to_window(&self) {
 			let _: () = unsafe { msg_send![super(self), viewDidMoveToWindow] };
@@ -123,13 +123,13 @@ define_class!(
 	}
 );
 
-impl WorkspacesStackView {
+impl SwitcherStackView {
 	fn status_item_window_changed(&self, _notification: &NSNotification) {
 		self.synchronize_input_panel();
 	}
 
 	pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
-		let this = Self::alloc(mtm).set_ivars(WorkspacesStackViewIvars::default());
+		let this = Self::alloc(mtm).set_ivars(SwitcherStackViewIvars::default());
 		unsafe { msg_send![super(this), init] }
 	}
 
@@ -288,11 +288,7 @@ impl WorkspacesStackView {
 
 		menu.addItem(&NSMenuItem::separatorItem(mtm));
 
-		#[cfg(debug_assertions)]
-		let title = concat!(env!("CARGO_PKG_NAME"), " (debug)");
-		#[cfg(not(debug_assertions))]
-		let title = env!("CARGO_PKG_NAME");
-		let title_item = self.create_menu_item(title, None);
+		let title_item = self.create_menu_item(crate::APP_NAME, None);
 		menu.addItem(&title_item);
 
 		let version_item = self.create_menu_item(concat!("v", env!("CARGO_PKG_VERSION")), None);
@@ -324,12 +320,12 @@ impl WorkspacesStackView {
 }
 
 struct StatusBarInputViewIvars {
-	stack: Weak<WorkspacesStackView>,
+	stack: Weak<SwitcherStackView>,
 }
 
 define_class!(
 	/// Receives clicks and hover events in `StatusBarInputPanel` and manually
-	/// forwards them to `WorkspacesStackView`, which stays inside the native
+	/// forwards them to `SwitcherStackView`, which stays inside the native
 	/// status item to preserve its appearance.
 	///
 	/// Holds a weak reference because the stack owns the panel and its content view.
@@ -379,7 +375,7 @@ define_class!(
 );
 
 impl StatusBarInputView {
-	fn new(stack: &WorkspacesStackView) -> Retained<Self> {
+	fn new(stack: &SwitcherStackView) -> Retained<Self> {
 		let ivars = StatusBarInputViewIvars {
 			stack: Weak::new(stack),
 		};
@@ -439,7 +435,7 @@ impl StatusBarInputPanel {
 	/// macOS highlights the native status item before delivering its click.
 	/// Receive input in a transparent, nonactivating panel while keeping the
 	/// entire button strip inside the original status item.
-	fn new(stack: &WorkspacesStackView) -> Retained<Self> {
+	fn new(stack: &SwitcherStackView) -> Retained<Self> {
 		let mtm = stack.mtm();
 		let panel = Self::alloc(mtm);
 		let style_mask = NSWindowStyleMask::Borderless | NSWindowStyleMask::NonactivatingPanel;

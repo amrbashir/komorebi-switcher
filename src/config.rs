@@ -12,7 +12,7 @@ fn default_height() -> i32 {
 	40
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct ColorsConfig {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub active_indicator: Option<String>,
@@ -26,7 +26,7 @@ impl ColorsConfig {
 	}
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MonitorConfig {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub show_layout_button: Option<bool>,
@@ -75,7 +75,7 @@ impl Default for MonitorConfig {
 	}
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct Config {
 	#[serde(default)]
 	pub show_layout_button: bool,
@@ -121,21 +121,7 @@ impl Config {
 				config_file.display()
 			);
 
-			#[allow(unused_mut)]
-			let mut config = Config::default();
-
-			#[cfg(target_os = "windows")]
-			{
-				tracing::info!("Migrating config from Windows registry if any");
-
-				let migrated = Self::migrate_from_registry()?;
-				if !migrated.is_empty() {
-					config.monitors = migrated;
-					config.save()?;
-				}
-			}
-
-			Ok(config)
+			Ok(Self::default())
 		}
 	}
 
