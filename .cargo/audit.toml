@@ -3,12 +3,5 @@ ignore = [
   # gtk3-rs unmaintained, linux dependecy only
   # so it is fine to ignore for this app
   "RUSTSEC-2024-0370",
-  "RUSTSEC-2024-0413",
-  "RUSTSEC-2024-0412",
-  "RUSTSEC-2024-0415",
-  "RUSTSEC-2024-0416",
-  "RUSTSEC-2024-0418",
-  "RUSTSEC-2024-0419",
-  "RUSTSEC-2024-0420",
   "RUSTSEC-2024-0429",
 ]
